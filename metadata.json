@@ -1,0 +1,7 @@
+{
+  "name": "Mokytojo refleksijos pagalbininkas",
+  "description": "Programėlė skirta mokytojams analizuoti mokinių apklausų duomenis ir atlikti gilią pedagoginę refleksiją pagal nustatytą metodiką.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
