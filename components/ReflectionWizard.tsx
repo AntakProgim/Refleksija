@@ -6,6 +6,7 @@ import { transcribeAudio, getReflectionSuggestions } from '../services/geminiSer
 interface ReflectionWizardProps {
   reflection: ReflectionData;
   setReflection: React.Dispatch<React.SetStateAction<ReflectionData>>;
+  aiInsights: any;
   onComplete: () => void;
   onBack: () => void;
 }
@@ -15,6 +16,7 @@ const DRAFT_KEY = 'teacher_reflection_draft_v1';
 const ReflectionWizard: React.FC<ReflectionWizardProps> = ({ 
   reflection, 
   setReflection, 
+  aiInsights,
   onComplete,
   onBack
 }) => {
@@ -92,15 +94,16 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
 
   // AI Suggestions Trigger
   useEffect(() => {
-    const isTargetStep = currentStep === 2 || currentStep === 4; 
-    const hasBaseData = reflection.observations.trim() && 
-                        reflection.strengths.trim() && 
-                        reflection.improvements.trim();
-
-    if (isTargetStep && hasBaseData) {
-      generateAIPrompts();
+    // Generate suggestions if we have some manual input or just at key steps
+    const isTriggerStep = currentStep >= 0; 
+    
+    if (isTriggerStep && aiInsights) {
+      const timer = setTimeout(() => {
+        generateAIPrompts();
+      }, 500); // Small debounce
+      return () => clearTimeout(timer);
     }
-  }, [currentStep]);
+  }, [currentStep, reflection.observations, reflection.strengths, reflection.improvements]);
 
   const generateAIPrompts = async () => {
     if (isLoadingSuggestions) return;
@@ -110,7 +113,8 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
         reflection.observations,
         reflection.strengths,
         reflection.improvements,
-        reflection.surprises
+        reflection.surprises,
+        aiInsights
       );
       setAiSuggestions(suggestions);
     } catch (e) { 

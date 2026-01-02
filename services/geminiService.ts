@@ -68,26 +68,38 @@ export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: 
   }
 };
 
-export const getReflectionSuggestions = async (observations: string, strengths: string, improvements: string, surprises: string) => {
+export const getReflectionSuggestions = async (
+  observations: string, 
+  strengths: string, 
+  improvements: string, 
+  surprises: string,
+  aiInsights: any
+) => {
   const prompt = `
-    Esi pedagoginis mentorius. Mokytojas atlieka mokslo metų savirefleksiją, remdamasis MOKINIŲ apklausos duomenimis.
-    Padėk mokytojui suprasti mokinių žinutę ir suformuluoti pokytį, kuris padėtų vaikams geriau mokytis kitais metais.
+    Esi pedagoginis mentorius. Mokytojas atlieka mokslo metų savirefleksiją.
+    Tavo užduotis: padėti mokytojui suformuluoti gilias įžvalgas, kurios tiesiogiai atlieptų MOKINIŲ lūkesčius ir jausmus.
     
-    MOKYTOJO PASTEBĖJIMAI APIE MOKINIŲ ATSAKYMUS:
-    Pastebėjimai: ${observations}
-    Stiprybės: ${strengths}
-    Tobulintinos sritys: ${improvements}
-    Netikėtumai: ${surprises}
+    STUDENTŲ APŽVALGOS DUOMENYS (DI Analizė):
+    - Mokinių matomos stiprybės: ${aiInsights?.strengths || 'Nenurodyta'}
+    - Mokinių nurodyti sunkumai: ${aiInsights?.improvements || 'Nenurodyta'}
+    - Pagrindinės temos: ${JSON.stringify(aiInsights?.themes || [])}
+    - Emocinis balas: ${aiInsights?.sentimentScore || 50}/100
 
-    Sugeneruok trumpus, po 1-2 sakinius, pasiūlymus šioms sritims, fokusuojantis į mokinio gerovę ir sėkmę:
-    1. "observationSuggestions": 3 patarimai, kokias dar mokinių tendencijas verta pastebėti.
-    2. "analysisSuggestions": 3 įžvalgos apie tai, kodėl mokiniai taip vertina procesą.
-    3. "bestPracticeSuggestions": 3 metodai, kurie mokiniams akivaizdžiai patinka ir turėtų būti tęsiami.
-    4. "emotionSuggestions": 3 idėjos, kaip įvardinti jausmą pamačius mokinių atvirumą.
-    5. "actionSuggestions": 3 konkretūs pokyčiai pamokose (remiantis mokinių prašymais/poreikiais).
-    6. "nextStepSuggestions": 3 būdai kitais metais pasitikrinti, ar mokiniai pajuto teigiamą pokytį.
+    DABARTINIAI MOKYTOJO PASTEBĖJIMAI:
+    - Pastebėjimai: ${observations}
+    - Mokytojo įžvelgtos stiprybės: ${strengths}
+    - Mokytojo įžvelgtos tobulintinos sritys: ${improvements}
+    - Netikėtumai: ${surprises}
+
+    Sugeneruok trumpus (1-2 sakiniai), konkrečius pasiūlymus, kurie padėtų mokytojui dar geriau suprasti mokinius:
+    1. "observationSuggestions": Pasiūlymai, kaip mokytojas galėtų giliau interpretuoti mokinių duomenis (atsižvelgiant į temas).
+    2. "analysisSuggestions": Įžvalgos apie tai, kaip mokytojo veiksmai koreliuoja su mokinių nurodytais sunkumais.
+    3. "bestPracticeSuggestions": Ką tęsti, kad išlaikyti teigiamą mokinių sentimentą.
+    4. "emotionSuggestions": Padėk mokytojui įvardinti jausmą (profesinę empatiją), atitinkantį mokinių grįžtamąjį ryšį.
+    5. "actionSuggestions": Konkretūs pokyčiai (start/stop/continue), kurie tiesiogiai spręstų mokinių įvardintas problemas.
+    6. "nextStepSuggestions": Kaip pamatuoti pokytį mokinio akimis.
     
-    Atsakymą pateik JSON formatu lietuvių kalba.
+    Atsakymą pateik JSON formatu lietuvių kalba. Būk empatiškas, bet objektyvus.
   `;
 
   try {

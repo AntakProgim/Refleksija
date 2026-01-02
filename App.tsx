@@ -186,7 +186,7 @@ const App: React.FC = () => {
 
         {step === AppStep.ANALYSIS && <SummaryDashboard summaries={summaries} feedback={openFeedback} aiInsights={aiInsights} isAnalyzing={isAnalyzing} onNext={() => setStep(AppStep.REFLECTION)} />}
         
-        {step === AppStep.REFLECTION && <ReflectionWizard reflection={reflection} setReflection={setReflection} onComplete={() => { saveToHistory(); setStep(AppStep.REPORT); }} onBack={() => setStep(AppStep.ANALYSIS)} />}
+        {step === AppStep.REFLECTION && <ReflectionWizard reflection={reflection} setReflection={setReflection} aiInsights={aiInsights} onComplete={() => { saveToHistory(); setStep(AppStep.REPORT); }} onBack={() => setStep(AppStep.ANALYSIS)} />}
 
         {step === AppStep.REPORT && (
           <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl animate-scale-in print:shadow-none print:p-0">
