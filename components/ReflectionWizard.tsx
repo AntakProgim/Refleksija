@@ -22,6 +22,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   const [animating, setAnimating] = useState(false);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [touchedSteps, setTouchedSteps] = useState<Set<number>>(new Set());
@@ -235,7 +236,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
         setAnimating(false);
       }, 200);
     } else {
-      onComplete();
+      setShowFinalConfirm(true);
     }
   };
 
@@ -280,6 +281,51 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
             <div className="flex flex-col gap-4">
               <button onClick={() => { setShowExitConfirm(false); onBack(); }} className="bg-gray-900 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">Taip, išeiti</button>
               <button onClick={() => setShowExitConfirm(false)} className="bg-indigo-50 text-indigo-600 font-black py-4 rounded-2xl hover:bg-indigo-100 transition-all">Likti ir pildyti</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Final Summary Confirmation Modal */}
+      {showFinalConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-lg">
+          <div className="bg-white rounded-[3rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl animate-scale-in max-h-[90vh] flex flex-col">
+            <div className="mb-8 shrink-0">
+              <h3 className="text-3xl font-black text-gray-900 tracking-tight">Refleksijos santrauka</h3>
+              <p className="text-gray-500 font-medium mt-2">Peržiūrėkite savo įžvalgas prieš generuojant galutinę ataskaitą.</p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-8">
+              {steps.map((step, idx) => (
+                <div key={idx} className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500 border-b border-indigo-50 pb-2">{step.title}</h4>
+                  <div className="space-y-6">
+                    {step.fields.map(field => (
+                      <div key={field.key} className="bg-slate-50 p-6 rounded-2xl border border-gray-100">
+                        <p className="text-[10px] font-black uppercase text-gray-400 mb-2 flex items-center gap-2">
+                          <i className={`fas ${field.icon} text-[8px]`}></i> {field.label}
+                        </p>
+                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{(reflection as any)[field.key] || '-'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 shrink-0 grid grid-cols-2 gap-4">
+              <button 
+                onClick={() => setShowFinalConfirm(false)} 
+                className="bg-gray-100 text-gray-500 font-black py-5 rounded-2xl hover:bg-gray-200 transition-all active:scale-95 text-sm"
+              >
+                Grįžti ir taisyti
+              </button>
+              <button 
+                onClick={() => { setShowFinalConfirm(false); onComplete(); }} 
+                className="bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-indigo-100 transition-all active:scale-95 text-sm"
+              >
+                Patvirtinti ir baigti
+              </button>
             </div>
           </div>
         </div>

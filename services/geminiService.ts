@@ -16,7 +16,7 @@ export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: 
     KOKYBINIAI DUOMENYS (Mokinių tekstiniai atsakymai, jų mintys ir jausmai):
     ${openFeedback.join("\n")}
 
-    Remiantis šiais duomenimis, sugeneruok išsamią analizę JSON formatu lietuvių kalba:
+    Remiantis šiais duomenimas, sugeneruok išsamią analizę JSON formatu lietuvių kalba:
     1. "strengths": Mokinių labiausiai vertinamos mokytojo savybės ar metodai.
     2. "improvements": Sritys, kurias mokiniai (vaikai) indikavo kaip sunkias, neaiškias ar nemalonias.
     3. "insights": Gilios pedagoginės įžvalgos apie tai, kaip mokiniai priima mokymosi procesą.
@@ -134,7 +134,7 @@ export const getReflectionSuggestions = async (observations: string, strengths: 
 export const transcribeAudio = async (base64Audio: string, mimeType: string) => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-native-audio-preview-09-2025",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           {
