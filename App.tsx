@@ -17,7 +17,6 @@ const App: React.FC = () => {
   const [showShareToast, setShowShareToast] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [hasDraft, setHasDraft] = useState(false);
-  const [initialWizardStep, setInitialWizardStep] = useState(0);
   
   const [reflection, setReflection] = useState<ReflectionData>({
     observations: '', strengths: '', improvements: '', surprises: '',
@@ -72,7 +71,6 @@ const App: React.FC = () => {
         setAiInsights(draft.aiInsights || null);
         setReflection(draft.reflection);
         setStep(draft.step);
-        // If they were in reflection, the wizard will handle its own currentStep from localStorage or props
         setHasDraft(false);
       } catch (e) {
         console.error("Failed to resume session", e);
@@ -96,8 +94,16 @@ const App: React.FC = () => {
     const updated = [newEntry, ...history].slice(0, 20);
     setHistory(updated);
     localStorage.setItem('teacher_reflection_history', JSON.stringify(updated));
-    // Clear draft once complete
     localStorage.removeItem(SESSION_DRAFT_KEY);
+  };
+
+  const deleteFromHistory = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Ar tikrai norite ištrinti šią refleksiją iš istorijos?')) {
+      const updated = history.filter(item => item.id !== id);
+      setHistory(updated);
+      localStorage.setItem('teacher_reflection_history', JSON.stringify(updated));
+    }
   };
 
   const handleDataParsed = (rows: SurveyRow[]) => {
@@ -189,9 +195,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 selection:bg-indigo-100">
+    <div className="min-h-screen bg-slate-50 pb-20 selection:bg-indigo-100 print:bg-white print:pb-0">
       {showShareToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 text-white px-8 py-4 rounded-2xl shadow-2xl animate-slide-up flex items-center gap-4 border border-white/10">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-gray-900 text-white px-8 py-4 rounded-2xl shadow-2xl animate-slide-up flex items-center gap-4 border border-white/10 print:hidden">
           <i className="fas fa-check-circle text-emerald-400"></i> Nuoroda nukopijuota sėkmingai!
         </div>
       )}
@@ -210,7 +216,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-6">
+      <main className="container mx-auto px-6 print:px-0 print:max-w-none">
         {step === AppStep.UPLOAD && (
           <div className="max-w-4xl mx-auto space-y-12">
             <div className="text-center space-y-4">
@@ -243,10 +249,25 @@ const App: React.FC = () => {
                 <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 px-2">Ankstesnės refleksijos</h3>
                 <div className="grid md:grid-cols-2 gap-4">
                   {history.map(item => (
-                    <button key={item.id} onClick={() => { setReflection(item.data); setStep(AppStep.REPORT); }} className="bg-white p-6 rounded-[2rem] border border-gray-100 text-left flex items-center justify-between group hover:shadow-xl hover:border-indigo-100 transition-all">
-                      <div><p className="font-black text-gray-800 text-lg">{new Date(item.date).toLocaleDateString('lt-LT')}</p><p className="text-xs text-gray-400 mt-1 uppercase font-bold tracking-wider">{item.summary}</p></div>
-                      <i className="fas fa-chevron-right text-gray-200 group-hover:text-indigo-500 transition-all"></i>
-                    </button>
+                    <div key={item.id} className="relative group">
+                      <button 
+                        onClick={() => { setReflection(item.data); setStep(AppStep.REPORT); }} 
+                        className="w-full bg-white p-6 rounded-[2rem] border border-gray-100 text-left flex items-center justify-between hover:shadow-xl hover:border-indigo-100 transition-all pr-16"
+                      >
+                        <div>
+                          <p className="font-black text-gray-800 text-lg">{new Date(item.date).toLocaleDateString('lt-LT')}</p>
+                          <p className="text-xs text-gray-400 mt-1 uppercase font-bold tracking-wider truncate max-w-[200px]">{item.summary}</p>
+                        </div>
+                        <i className="fas fa-chevron-right text-gray-200 group-hover:text-indigo-500 transition-all"></i>
+                      </button>
+                      <button 
+                        onClick={(e) => deleteFromHistory(item.id, e)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-gray-200 hover:text-rose-500 hover:bg-rose-50 transition-all"
+                        title="Ištrinti iš istorijos"
+                      >
+                        <i className="fas fa-trash-can text-sm"></i>
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -256,47 +277,81 @@ const App: React.FC = () => {
 
         {step === AppStep.ANALYSIS && <SummaryDashboard summaries={summaries} feedback={openFeedback} aiInsights={aiInsights} isAnalyzing={isAnalyzing} onNext={() => setStep(AppStep.REFLECTION)} />}
         
-        {step === AppStep.REFLECTION && <ReflectionWizard reflection={reflection} setReflection={setReflection} aiInsights={aiInsights} onComplete={() => { saveToHistory(); setStep(AppStep.REPORT); }} onBack={() => setStep(AppStep.ANALYSIS)} />}
+        {step === AppStep.REFLECTION && <ReflectionWizard reflection={reflection} setReflection={setReflection} aiInsights={aiInsights} onComplete={() => { saveToHistory(); setStep(AppStep.REPORT); }} onBack={() => setStep(AppStep.ANALYSIS)} onSaveAndExit={() => setStep(AppStep.UPLOAD)} />}
 
         {step === AppStep.REPORT && (
-          <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl animate-scale-in print:shadow-none print:p-0">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 border-b border-gray-100 pb-12 print:hidden gap-6">
+          <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl animate-scale-in report-container print:p-0 print:m-0 print:max-w-none print:shadow-none print:rounded-none">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 border-b border-gray-100 pb-12 print:pb-8 print:mb-10 gap-6">
               <div>
-                <h2 className="text-4xl font-black text-gray-900">Refleksijos rezultatas</h2>
+                <h2 className="text-4xl font-black text-gray-900 print:text-2xl">Refleksijos rezultatas</h2>
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-2">{new Date().toLocaleDateString('lt-LT')}</p>
               </div>
-              <div className="flex gap-3 w-full md:w-auto">
+              <div className="flex gap-3 w-full md:w-auto print:hidden">
                 <button onClick={handleShare} className="flex-1 px-6 py-4 rounded-2xl border-2 border-indigo-50 text-indigo-600 font-black text-sm flex items-center justify-center gap-2 transition-all active:scale-95"><i className="fas fa-share"></i> Dalintis</button>
                 <button onClick={() => window.print()} className="flex-1 px-6 py-4 rounded-2xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 transition-all active:scale-95"><i className="fas fa-file-pdf"></i> Atsisiųsti PDF</button>
               </div>
             </div>
 
-            <div className="space-y-16">
-              <section className="grid md:grid-cols-2 gap-12">
-                <div className="space-y-4"><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Pastebėjimai</h4><p className="text-gray-700 italic text-xl">"{reflection.observations || '-'}"</p></div>
-                <div className="space-y-4"><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Stiprybės</h4><p className="text-gray-700 text-xl font-medium">{reflection.strengths || '-'}</p></div>
-              </section>
-
-              <section className="bg-slate-900 text-white p-12 rounded-[3rem] space-y-10 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[100px] rounded-full"></div>
-                <h3 className="font-black text-2xl flex items-center gap-4 relative z-10"><i className="fas fa-rocket text-indigo-400"></i> Veiksmų planas kitais metais</h3>
-                <div className="grid md:grid-cols-3 gap-10 relative z-10 text-indigo-50/80">
-                  <div className="space-y-2"><h5 className="text-[10px] font-black uppercase tracking-widest text-rose-400 border-b border-rose-400/20 pb-2">Nustosiu</h5><p className="text-sm">{reflection.actionStop || '-'}</p></div>
-                  <div className="space-y-2"><h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 border-b border-emerald-400/20 pb-2">Pradėsiu</h5><p className="text-sm">{reflection.actionStart || '-'}</p></div>
-                  <div className="space-y-2"><h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 border-b border-indigo-400/20 pb-2">Tęsiu</h5><p className="text-sm">{reflection.actionContinue || '-'}</p></div>
+            <div className="space-y-16 print:space-y-10">
+              <section className="report-section grid md:grid-cols-2 gap-12 print:grid-cols-1 print:gap-8">
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Pastebėjimai</h4>
+                  <p className="text-gray-700 italic text-xl print:text-base leading-relaxed">"{reflection.observations || '-'}"</p>
                 </div>
-                <div className="pt-8 border-t border-white/5 relative z-10 text-indigo-50/80">
-                  <h5 className="text-[10px] font-black uppercase text-indigo-300 mb-2">Kaip žinosiu, kad vaikams sekasi geriau?</h5>
-                  <p className="text-sm">{reflection.nextSteps || '-'}</p>
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Stiprybės</h4>
+                  <p className="text-gray-700 text-xl font-medium print:text-base leading-relaxed">{reflection.strengths || '-'}</p>
                 </div>
               </section>
 
-              <section className="grid md:grid-cols-2 gap-12">
-                <div className="space-y-4"><h4 className="text-[10px] font-black uppercase text-gray-400">Geroji patirtis</h4><p className="text-gray-700">{reflection.bestPractices || '-'}</p></div>
-                <div className="space-y-4"><h4 className="text-[10px] font-black uppercase text-gray-400">Refleksijos emocija</h4><p className="text-gray-700">{reflection.heartFeelings} • {reflection.headThoughts}</p></div>
+              <section className="report-section bg-slate-900 text-white p-12 rounded-[3rem] space-y-10 relative overflow-hidden print:bg-white print:text-black print:border print:rounded-2xl print:p-8">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[100px] rounded-full print:hidden"></div>
+                <h3 className="font-black text-2xl flex items-center gap-4 relative z-10 print:text-xl"><i className="fas fa-rocket text-indigo-400 print:text-indigo-600"></i> Veiksmų planas kitais metais</h3>
+                <div className="grid md:grid-cols-3 gap-10 relative z-10 text-indigo-50/80 print:grid-cols-1 print:text-black print:gap-6">
+                  <div className="space-y-2">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-rose-400 border-b border-rose-400/20 pb-2 print:text-rose-600 print:border-rose-100">Nustosiu</h5>
+                    <p className="text-sm leading-relaxed">{reflection.actionStop || '-'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 border-b border-emerald-400/20 pb-2 print:text-emerald-600 print:border-emerald-100">Pradėsiu</h5>
+                    <p className="text-sm leading-relaxed">{reflection.actionStart || '-'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 border-b border-indigo-400/20 pb-2 print:text-indigo-600 print:border-indigo-100">Tęsiu</h5>
+                    <p className="text-sm leading-relaxed">{reflection.actionContinue || '-'}</p>
+                  </div>
+                </div>
+                <div className="pt-8 border-t border-white/5 relative z-10 text-indigo-50/80 print:text-black print:border-gray-100">
+                  <h5 className="text-[10px] font-black uppercase text-indigo-300 mb-2 print:text-indigo-600">Kaip žinosiu, kad vaikams sekasi geriau?</h5>
+                  <p className="text-sm leading-relaxed">{reflection.nextSteps || '-'}</p>
+                </div>
               </section>
 
-              <div className="text-center pt-10 border-t border-gray-100"><p className="text-[9px] text-gray-300 font-black uppercase tracking-[0.4em]">Refleksijos pagalbininkas • Profesinis augimas mokinio sėkmei</p></div>
+              <section className="report-section grid md:grid-cols-2 gap-12 print:grid-cols-1 print:gap-8">
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400">Tobulėjimo kryptis</h4>
+                  <p className="text-gray-700 leading-relaxed">{reflection.improvements || '-'}</p>
+                </div>
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400">Kas nustebino</h4>
+                  <p className="text-gray-700 leading-relaxed">{reflection.surprises || '-'}</p>
+                </div>
+              </section>
+
+              <section className="report-section grid md:grid-cols-2 gap-12 print:grid-cols-1 print:gap-8">
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400">Geroji patirtis</h4>
+                  <p className="text-gray-700 leading-relaxed">{reflection.bestPractices || '-'}</p>
+                </div>
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase text-gray-400">Refleksijos emocija</h4>
+                  <p className="text-gray-700 leading-relaxed">{reflection.heartFeelings} • {reflection.headThoughts}</p>
+                </div>
+              </section>
+
+              <div className="text-center pt-10 border-t border-gray-100 print:pt-6 print:mt-10">
+                <p className="text-[9px] text-gray-300 font-black uppercase tracking-[0.4em] print:text-gray-400">Refleksijos pagalbininkas • Profesinis augimas mokinio sėkmei</p>
+              </div>
             </div>
           </div>
         )}

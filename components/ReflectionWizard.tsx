@@ -9,6 +9,7 @@ interface ReflectionWizardProps {
   aiInsights: any;
   onComplete: () => void;
   onBack: () => void;
+  onSaveAndExit: () => void;
 }
 
 const WIZARD_STEP_KEY = 'teacher_reflection_wizard_step_v1';
@@ -18,7 +19,8 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   setReflection, 
   aiInsights,
   onComplete,
-  onBack
+  onBack,
+  onSaveAndExit
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [animating, setAnimating] = useState(false);
@@ -155,10 +157,18 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
     if (focusedField?.suggestionsKey && aiInsights) {
       const timer = setTimeout(() => {
         generateAIPrompts();
-      }, 400);
+      }, 500); // Slightly longer debounce for better reasoning
       return () => clearTimeout(timer);
     }
-  }, [focusedFieldKey, currentStep, reflection.observations, reflection.strengths, reflection.improvements]);
+  }, [
+    focusedFieldKey, 
+    currentStep, 
+    reflection.observations, 
+    reflection.strengths, 
+    reflection.improvements, 
+    reflection.surprises,
+    aiInsights
+  ]);
 
   const generateAIPrompts = async () => {
     if (isLoadingSuggestions) return;
@@ -295,7 +305,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl text-center">
             <h3 className="text-2xl font-black mb-4 tracking-tight text-rose-600">Išeiti iš refleksijos?</h3>
-            <p className="text-gray-500 mb-8 font-medium">Jūsų progresas yra išsaugotas, bet grįšite į duomenų apžvalgą.</p>
+            <p className="text-gray-500 mb-8 font-medium">Jūsų progresas yra automatiškai išsaugotas.</p>
             <div className="flex flex-col gap-4">
               <button onClick={() => { setShowExitConfirm(false); onBack(); }} className="bg-gray-900 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">Taip, išeiti</button>
               <button onClick={() => setShowExitConfirm(false)} className="bg-indigo-50 text-indigo-600 font-black py-4 rounded-2xl hover:bg-indigo-100 transition-all">Likti ir pildyti</button>
@@ -424,39 +434,24 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                     )}
                     
                     {field.key === 'observations' && (
-                      <div className="flex gap-2">
-                        <div className="relative">
-                          <button 
-                            onClick={() => setShowObservationsMenu(!showObservationsMenu)} 
-                            className="h-10 px-4 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-200 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95"
-                          >
-                            <i className="fas fa-list-check"></i> Komentuoti
-                          </button>
-                          {showObservationsMenu && (
-                            <div className="absolute right-0 top-12 z-[100] bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 w-52 animate-fade-in">
-                              <div className="grid gap-1">
-                                {observationsList.map(obs => (
-                                  <button key={obs} onClick={() => { insertSuggestion('observations', obs); setShowObservationsMenu(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-bold transition-all flex items-center justify-between group">
-                                    {obs} <i className="fas fa-plus opacity-0 group-hover:opacity-100 text-[10px]"></i>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
+                      <div className="relative">
                         <button 
-                          onClick={() => isThisRecording ? stopRecording() : startRecording(field.key)} 
-                          disabled={isTranscribing}
-                          className={`h-10 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95 ${
-                            isThisRecording 
-                              ? 'bg-rose-500 text-white shadow-rose-200' 
-                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                          } ${isTranscribing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          onClick={() => setShowObservationsMenu(!showObservationsMenu)} 
+                          className="h-10 px-4 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-200 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95"
                         >
-                          <i className={`fas ${isThisRecording ? 'fa-stop' : 'fa-microphone'} ${isThisRecording ? 'animate-pulse' : ''}`}></i>
-                          <span>{isThisRecording ? `Stop (${formatTime(recordingTime)})` : 'Record Observation'}</span>
+                          <i className="fas fa-list-check"></i> Komentuoti
                         </button>
+                        {showObservationsMenu && (
+                          <div className="absolute right-0 top-12 z-[100] bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 w-52 animate-fade-in">
+                            <div className="grid gap-1">
+                              {observationsList.map(obs => (
+                                <button key={obs} onClick={() => { insertSuggestion('observations', obs); setShowObservationsMenu(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-bold transition-all flex items-center justify-between group">
+                                  {obs} <i className="fas fa-plus opacity-0 group-hover:opacity-100 text-[10px]"></i>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -500,7 +495,14 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                     {aiSuggestions[field.suggestionsKey]?.length > 0 ? (
                       <div className="bg-indigo-50/40 p-6 rounded-[2rem] border border-indigo-100/30 space-y-4">
                         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                          <i className="fas fa-magic"></i> Mentoriaus įžvalgos pagal mokinius
+                          <i className="fas fa-magic"></i> Mentoriaus įžvalgos pagal mokinių temas
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {aiInsights?.themes?.map((theme: any, tIdx: number) => (
+                            <span key={tIdx} className="text-[8px] font-black uppercase tracking-tighter bg-white/50 text-indigo-500 px-2 py-0.5 rounded-full border border-indigo-100">
+                              {theme.label}
+                            </span>
+                          ))}
                         </div>
                         <div className="grid gap-2">
                           {aiSuggestions[field.suggestionsKey].map((s: string, idx: number) => (
@@ -512,7 +514,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                       </div>
                     ) : isLoadingSuggestions ? (
                       <div className="h-20 bg-gray-50/50 rounded-[2rem] border border-gray-100 animate-pulse flex items-center justify-center">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-300">Ruošiame pagalbą...</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-300">Generuojami teminiai pasiūlymai...</span>
                       </div>
                     ) : null}
                   </div>
@@ -523,10 +525,15 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="flex justify-between mt-16 pt-8 border-t border-gray-50">
-          <button onClick={handleBackWithConfirm} className="px-8 py-4 text-gray-400 font-black hover:text-indigo-600 transition-all flex items-center gap-2 active:scale-95">
-            <i className="fas fa-chevron-left"></i> Atgal
-          </button>
+        <div className="flex justify-between items-center mt-16 pt-8 border-t border-gray-50">
+          <div className="flex gap-4">
+            <button onClick={handleBackWithConfirm} className="px-6 py-4 text-gray-400 font-black hover:text-indigo-600 transition-all flex items-center gap-2 active:scale-95">
+              <i className="fas fa-chevron-left"></i> Atgal
+            </button>
+            <button onClick={onSaveAndExit} className="px-6 py-4 text-indigo-400 font-black hover:text-indigo-600 transition-all flex items-center gap-2 active:scale-95 text-xs uppercase tracking-widest">
+              <i className="fas fa-save"></i> Išsaugoti ir išeiti
+            </button>
+          </div>
           
           <button 
             onClick={next} 

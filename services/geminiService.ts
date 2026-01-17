@@ -7,26 +7,26 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: string[]) => {
   const prompt = `
-    Esi pedagoginis mentorius ir duomenų analitikas. Tau pateikiama mokslo metų pabaigos apklausos santrauka, kurią pildė MOKINIAI (kartais padedami tėvų). 
+    Esi pedagoginis mentorius ir duomenų analitikas. Tau pateikiama mokslo metų pabaigos apklausos santrauka, kurią pildė MOKINIAI. 
     Tavo užduotis - analizuoti duomenis iš mokinio perspektyvos: kaip jie jaučiasi pamokose, ar jiems suprantamas turinys, koks jų santykis su mokytoju.
     
     KIEKYBINIAI DUOMENYS (Mokinių vertinimai 1-5 skalėje):
     ${JSON.stringify(summaries)}
     
-    KOKYBINIAI DUOMENYS (Mokinių tekstiniai atsakymai, jų mintys ir jausmai):
+    KOKYBINIAI DUOMENYS (Mokinių tekstiniai atsakymai):
     ${openFeedback.join("\n")}
 
     Remiantis šiais duomenimas, sugeneruok išsamią analizę JSON formatu lietuvių kalba:
     1. "strengths": Mokinių labiausiai vertinamos mokytojo savybės ar metodai.
     2. "improvements": Sritys, kurias mokiniai (vaikai) indikavo kaip sunkias, neaiškias ar nemalonias.
     3. "insights": Gilios pedagoginės įžvalgos apie tai, kaip mokiniai priima mokymosi procesą.
-    4. "themes": Išskirk 3-4 pagrindines temas iš tekstinių atsakymų (pvz., "Emocinis saugumas", "Namų darbų krūvis"). Kiekvienai temai pateik aprašymą ir vyraujančią mokinių nuotaiką.
+    4. "themes": Išskirk 3-4 pagrindines temas (pvz., "Emocinis saugumas", "Grįžtamasis ryšys", "Mokymosi tempas"). Kiekvienai temai pateik aprašymą ir vyraujančią mokinių nuotaiką.
     5. "sentimentScore": Bendras mokslo metų emocinis fonas mokinio akimis (nuo 0 iki 100).
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -76,47 +76,44 @@ export const getReflectionSuggestions = async (
   aiInsights: any
 ) => {
   const prompt = `
-    Esi pedagoginis mentorius. Mokytojas atlieka mokslo metų savirefleksiją.
-    Tavo užduotis: padėti mokytojui suformuluoti gilias įžvalgas, kurios tiesiogiai atlieptų MOKINIŲ lūkesčius ir jausmus.
+    Esi aukšto lygio pedagoginis mentorius. Mokytojas pildo savirefleksiją po mokinių apklausos.
+    Tavo užduotis: pateikti pasiūlymus, kurie padėtų mokytojui susieti savo mintis su KONKREČIOMIS MOKINIŲ ĮVARDINTOMIS TEMOMIS.
     
-    STUDENTŲ APŽVALGOS DUOMENYS (DI Analizė):
-    - Mokinių matomos stiprybės: ${aiInsights?.strengths || 'Nenurodyta'}
-    - Mokinių nurodyti sunkumai: ${aiInsights?.improvements || 'Nenurodyta'}
-    - Pagrindinės temos: ${JSON.stringify(aiInsights?.themes || [])}
-    - Emocinis balas: ${aiInsights?.sentimentScore || 50}/100
+    DUOMENŲ ANALIZĖS REZULTATAI (MOKINIŲ BALSAS):
+    - Pagrindinės temos (themes): ${JSON.stringify(aiInsights?.themes || [])}
+    - Mokinių pastebėtos stiprybės: ${aiInsights?.strengths || 'Nenurodyta'}
+    - Mokinių įvardintos silpnybės: ${aiInsights?.improvements || 'Nenurodyta'}
 
-    DABARTINIAI MOKYTOJO PASTEBĖJIMAI:
-    - Pastebėjimai: ${observations}
-    - Mokytojo įžvelgtos stiprybės: ${strengths}
-    - Mokytojo įžvelgtos tobulintinos sritys: ${improvements}
-    - Netikėtumai: ${surprises}
+    MOKYTOJO DABARTINĖS MINTYS:
+    - Pastebėjimai: ${observations || 'Dar nepildyta'}
+    - Stiprybės: ${strengths || 'Dar nepildyta'}
+    - Tobulėjimas: ${improvements || 'Dar nepildyta'}
+    - Netikėtumai: ${surprises || 'Dar nepildyta'}
 
-    Sugeneruok trumpus (1-2 sakiniai), konkrečius pasiūlymus, kurie padėtų mokytojui dar geriau suprasti mokinius:
-    1. "observationSuggestions": Pasiūlymai, kaip mokytojas galėtų giliau interpretuoti mokinių duomenis (atsižvelgiant į temas).
-    2. "analysisSuggestions": Įžvalgos apie tai, kaip mokytojo veiksmai koreliuoja su mokinių nurodytais sunkumais.
-    3. "bestPracticeSuggestions": Ką tęsti, kad išlaikyti teigiamą mokinių sentimentą.
-    4. "emotionSuggestions": Padėk mokytojui įvardinti jausmą (profesinę empatiją), atitinkantį mokinių grįžtamąjį ryšį.
-    5. "actionSuggestions": Konkretūs pokyčiai (start/stop/continue), kurie tiesiogiai spręstų mokinių įvardintas problemas.
-    6. "nextStepSuggestions": Kaip pamatuoti pokytį mokinio akimis.
-    
-    Atsakymą pateik JSON formatu lietuvių kalba. Būk empatiškas, bet objektyvus.
+    INSTRUKCIJA:
+    Sugeneruok po 3-4 itin konkrečius pasiūlymus kiekvienai kategorijai. 
+    KIEKVIENAS pasiūlymas privalo būti TIESIOGIAI pririštas prie bent vienos iš aukščiau nurodytų temų (themes). 
+    Pvz., jei tema yra „Emocinis saugumas“, pasiūlymas pastebėjimams turi padėti mokytojui rasti priežastis duomenyse, kodėl vaikai taip jaučiasi. 
+    Pasiūlymas veiksmams turi siūlyti konkretų metodą, kaip tą saugumą didinti.
+
+    Atsakymą pateik JSON formatu lietuvių kalba.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            observationSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            analysisSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            bestPracticeSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            emotionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            actionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            nextStepSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
+            observationSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Pasiūlymai ką dar pastebėti duomenyse per temų prizmę" },
+            analysisSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Kaip susieti metodus su temomis" },
+            bestPracticeSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Konkretūs metodai stiprinantys pozityvias temas" },
+            emotionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Kaip jaustis dėl specifinių mokinių atsiliepimų" },
+            actionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Veiksmai sprendžiantys temų problemas" },
+            nextStepSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Indikatoriai specifinių temų pokyčiui matuoti" }
           },
           required: [
             "observationSuggestions", 

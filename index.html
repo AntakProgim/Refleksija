@@ -30,12 +30,64 @@
         .animate-pulse-soft { animation: pulseSoft 2s infinite ease-in-out; }
         
         @media print {
-            body { background: white !important; }
+            @page {
+                margin: 15mm;
+                size: A4;
+            }
+            
+            /* Pašaliname viską, kas trukdo natūraliam lapų lūžiui */
+            html, body, #root, main {
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
             .print\:hidden { display: none !important; }
-            .print\:shadow-none { shadow: none !important; }
-            .print\:p-0 { padding: 0 !important; }
-            main { padding: 0 !important; margin: 0 !important; }
-            .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; }
+            
+            /* Ataskaitos konteinerio pritaikymas */
+            .report-container {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                transform: none !important;
+                animation: none !important;
+                opacity: 1 !important;
+                display: block !important;
+            }
+
+            /* Puslapių lūžiai sekcijoms */
+            section, .report-section {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                margin-bottom: 30px !important;
+                display: block !important;
+                clear: both;
+            }
+
+            /* Teksto spalvos ir aiškumas */
+            h1, h2, h3, h4, h5, p, span, i {
+                color: black !important;
+                text-shadow: none !important;
+            }
+
+            .bg-slate-900 {
+                background-color: transparent !important;
+                border: 1px solid #eee !important;
+                color: black !important;
+            }
+            
+            .text-white { color: black !important; }
+            .text-indigo-50\/80 { color: #374151 !important; }
+            
+            /* Paslepiame foninius elementus */
+            .blur-\[100px\], .absolute { display: none !important; }
         }
 
         .custom-scrollbar::-webkit-scrollbar {
