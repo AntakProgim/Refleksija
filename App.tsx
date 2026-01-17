@@ -6,6 +6,8 @@ import SummaryDashboard from './components/SummaryDashboard';
 import ReflectionWizard from './components/ReflectionWizard';
 import { getAIInsights } from './services/geminiService';
 
+const SESSION_DRAFT_KEY = 'teacher_reflection_session_v1';
+
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
   const [summaries, setSummaries] = useState<QuestionSummary[]>([]);
@@ -14,6 +16,8 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [initialWizardStep, setInitialWizardStep] = useState(0);
   
   const [reflection, setReflection] = useState<ReflectionData>({
     observations: '', strengths: '', improvements: '', surprises: '',
@@ -21,9 +25,15 @@ const App: React.FC = () => {
     actionStop: '', actionStart: '', actionContinue: '', nextSteps: ''
   });
 
+  // Load history and check for draft on mount
   useEffect(() => {
     const savedHistory = localStorage.getItem('teacher_reflection_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
+
+    const draft = localStorage.getItem(SESSION_DRAFT_KEY);
+    if (draft) {
+      setHasDraft(true);
+    }
 
     const hash = window.location.hash;
     if (hash.startsWith('#data=')) {
@@ -37,6 +47,45 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Auto-save session state
+  useEffect(() => {
+    if (step !== AppStep.UPLOAD && step !== AppStep.REPORT) {
+      const stateToSave = {
+        step,
+        summaries,
+        openFeedback,
+        aiInsights,
+        reflection,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(SESSION_DRAFT_KEY, JSON.stringify(stateToSave));
+    }
+  }, [step, summaries, openFeedback, aiInsights, reflection]);
+
+  const handleResumeSession = () => {
+    const draftJson = localStorage.getItem(SESSION_DRAFT_KEY);
+    if (draftJson) {
+      try {
+        const draft = JSON.parse(draftJson);
+        setSummaries(draft.summaries || []);
+        setOpenFeedback(draft.openFeedback || []);
+        setAiInsights(draft.aiInsights || null);
+        setReflection(draft.reflection);
+        setStep(draft.step);
+        // If they were in reflection, the wizard will handle its own currentStep from localStorage or props
+        setHasDraft(false);
+      } catch (e) {
+        console.error("Failed to resume session", e);
+        localStorage.removeItem(SESSION_DRAFT_KEY);
+      }
+    }
+  };
+
+  const handleClearDraft = () => {
+    localStorage.removeItem(SESSION_DRAFT_KEY);
+    setHasDraft(false);
+  };
+
   const saveToHistory = () => {
     const newEntry = {
       id: Date.now(),
@@ -47,6 +96,8 @@ const App: React.FC = () => {
     const updated = [newEntry, ...history].slice(0, 20);
     setHistory(updated);
     localStorage.setItem('teacher_reflection_history', JSON.stringify(updated));
+    // Clear draft once complete
+    localStorage.removeItem(SESSION_DRAFT_KEY);
   };
 
   const handleDataParsed = (rows: SurveyRow[]) => {
@@ -56,7 +107,8 @@ const App: React.FC = () => {
 
   const handleNewAnalysis = () => {
     if (step !== AppStep.UPLOAD) {
-      if (confirm('Ar tikrai norite pradėti naują analizę? Visi nebaigti refleksijos pokyčiai gali būti prarasti.')) {
+      if (confirm('Ar tikrai norite pradėti naują analizę? Visi nebaigti refleksijos pokyčiai bus prarasti.')) {
+        localStorage.removeItem(SESSION_DRAFT_KEY);
         window.location.reload();
       }
     }
@@ -77,9 +129,7 @@ const App: React.FC = () => {
     rawHeaders.forEach(rawHeader => {
       if (rawHeader.toLowerCase().includes('laiko žymė')) return;
       const cleanedHeader = cleanHeader(rawHeader);
-      const headerLower = rawHeader.toLowerCase();
-      const isFeedbackField = headerLower.includes('idėja') || headerLower.includes('pasiūlymas') || headerLower.includes('komentar') || headerLower.includes('kodėl') || headerLower.includes('manote') || headerLower.includes('jaučiatės');
-
+      
       let sum = 0, validCount = 0, isNumeric = false;
       const counts: { [val: string]: number } = {};
 
@@ -167,7 +217,27 @@ const App: React.FC = () => {
               <h2 className="text-5xl font-black text-gray-900 tracking-tight">Mokslo metų analizė</h2>
               <p className="text-gray-500 max-w-lg mx-auto text-lg font-medium">Įkelk apklausos rezultatus ir leisk DI mentorystei nukreipti tavo augimą.</p>
             </div>
+
+            {hasDraft && (
+              <div className="bg-indigo-600 rounded-[2.5rem] p-8 text-white shadow-2xl animate-scale-in flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-6">
+                  <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                    <i className="fas fa-rotate-left text-xl"></i>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black">Tęsti nebaigtą sesiją?</h3>
+                    <p className="text-indigo-100/80 text-sm font-medium">Radome jūsų paskutinę nebaigtą refleksiją.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 w-full md:w-auto">
+                  <button onClick={handleClearDraft} className="flex-1 px-6 py-4 rounded-2xl bg-white/10 hover:bg-white/20 font-black text-xs uppercase tracking-widest transition-all">Ištrinti</button>
+                  <button onClick={handleResumeSession} className="flex-1 px-10 py-4 rounded-2xl bg-white text-indigo-600 font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">Tęsti pildymą</button>
+                </div>
+              </div>
+            )}
+
             <CSVUpload onParsed={handleDataParsed} />
+            
             {history.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 px-2">Ankstesnės refleksijos</h3>

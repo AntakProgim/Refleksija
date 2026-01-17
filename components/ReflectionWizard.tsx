@@ -11,7 +11,7 @@ interface ReflectionWizardProps {
   onBack: () => void;
 }
 
-const DRAFT_KEY = 'teacher_reflection_draft_v1';
+const WIZARD_STEP_KEY = 'teacher_reflection_wizard_step_v1';
 
 const ReflectionWizard: React.FC<ReflectionWizardProps> = ({ 
   reflection, 
@@ -22,7 +22,6 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [animating, setAnimating] = useState(false);
-  const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -33,13 +32,17 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
   const [recordingField, setRecordingField] = useState<string | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
 
-  // Moods / Emotions
+  // Menus / Options
   const [showEmotionsMenu, setShowEmotionsMenu] = useState(false);
+  const [showObservationsMenu, setShowObservationsMenu] = useState(false);
   const emotionsList = ['Džiaugsmas', 'Liūdesys', 'Skausmas', 'Apmąstymai', 'Nuobodulys', 'Įkvėpimas', 'Nerimas', 'Pasididžiavimas', 'Nuovargis'];
+  const observationsList = ['Klasės dinamika', 'Aktyvumas pamokoje', 'Motyvacija', 'Dalyko supratimas', 'Socialiniai įgūdžiai'];
 
   const [aiSuggestions, setAiSuggestions] = useState<any>({
     observationSuggestions: [],
@@ -51,16 +54,39 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   });
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
-  // Auto-save effect
+  // Restore wizard step on mount
+  useEffect(() => {
+    const savedStep = localStorage.getItem(WIZARD_STEP_KEY);
+    if (savedStep) {
+      setCurrentStep(parseInt(savedStep, 10));
+    }
+  }, []);
+
+  // Persist wizard step whenever it changes
+  useEffect(() => {
+    localStorage.setItem(WIZARD_STEP_KEY, currentStep.toString());
+  }, [currentStep]);
+
+  // Recording Timer
+  useEffect(() => {
+    if (isRecording) {
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setRecordingTime(0);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [isRecording]);
+
+  // Visual auto-save feedback
   useEffect(() => {
     setIsAutoSaving(true);
     const timeout = setTimeout(() => {
-      const draft = { reflection, currentStep, timestamp: new Date().getTime() };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setLastSaved(new Date());
       setIsAutoSaving(false);
     }, 1000);
-
     return () => clearTimeout(timeout);
   }, [reflection, currentStep]);
 
@@ -70,114 +96,12 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
       const hasContent = Object.values(reflection).some(v => (v as string).trim().length > 10);
       if (hasContent) {
         e.preventDefault();
-        e.returnValue = 'Ar tikrai norite išeiti? Jūsų nebaigta refleksija yra išsaugota naršyklėje kaip juodraštis.';
+        e.returnValue = 'Ar tikrai norite išeiti? Jūsų progresas yra išsaugotas.';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [reflection]);
-
-  // Resume Draft Check
-  useEffect(() => {
-    const savedDraft = localStorage.getItem(DRAFT_KEY);
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        const isCurrentlyEmpty = Object.values(reflection).every(val => (val as string).trim() === '');
-        const draftHasContent = Object.values(parsed.reflection).some(val => (val as string).trim() !== '');
-        if (isCurrentlyEmpty && draftHasContent) {
-          setShowResumePrompt(true);
-        }
-      } catch (e) { console.error(e); }
-    }
-  }, []);
-
-  // AI Suggestions Trigger
-  useEffect(() => {
-    // Generate suggestions if we have some manual input or just at key steps
-    const isTriggerStep = currentStep >= 0; 
-    
-    if (isTriggerStep && aiInsights) {
-      const timer = setTimeout(() => {
-        generateAIPrompts();
-      }, 500); // Small debounce
-      return () => clearTimeout(timer);
-    }
-  }, [currentStep, reflection.observations, reflection.strengths, reflection.improvements]);
-
-  const generateAIPrompts = async () => {
-    if (isLoadingSuggestions) return;
-    setIsLoadingSuggestions(true);
-    try {
-      const suggestions = await getReflectionSuggestions(
-        reflection.observations,
-        reflection.strengths,
-        reflection.improvements,
-        reflection.surprises,
-        aiInsights
-      );
-      setAiSuggestions(suggestions);
-    } catch (e) { 
-      console.error(e); 
-    } finally { 
-      setIsLoadingSuggestions(false); 
-    }
-  };
-
-  const handleFieldFocus = (fieldKey: string) => {
-    setFocusedFieldKey(fieldKey);
-  };
-
-  const startRecording = async (field: string) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunksRef.current.push(event.data); };
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        setIsTranscribing(true);
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64Audio = (reader.result as string).split(',')[1];
-          const transcription = await transcribeAudio(base64Audio, 'audio/webm');
-          if (transcription) {
-            setReflection(prevRef => ({ 
-              ...prevRef, 
-              [field]: prevRef[field as keyof ReflectionData] 
-                ? `${prevRef[field as keyof ReflectionData].trim()}\n${transcription}` 
-                : transcription 
-            }));
-          }
-          setIsTranscribing(false);
-        };
-        stream.getTracks().forEach(track => track.stop());
-      };
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingField(field);
-    } catch (err) { alert("Nepavyko pasiekti mikrofono."); }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setRecordingField(null);
-    }
-  };
-
-  const insertSuggestion = (field: keyof ReflectionData, suggestion: string) => {
-    setReflection(prevRef => {
-      const currentVal = prevRef[field];
-      const newVal = currentVal && currentVal.trim().length > 0 
-        ? `${currentVal.trim()}\n• ${suggestion}` 
-        : `• ${suggestion}`;
-      return { ...prevRef, [field]: newVal };
-    });
-  };
 
   const steps = [
     {
@@ -223,6 +147,107 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
     }
   ];
 
+  // AI Suggestions Trigger
+  useEffect(() => {
+    const currentStepFields = steps[currentStep].fields;
+    const focusedField = currentStepFields.find(f => f.key === focusedFieldKey);
+    
+    if (focusedField?.suggestionsKey && aiInsights) {
+      const timer = setTimeout(() => {
+        generateAIPrompts();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [focusedFieldKey, currentStep, reflection.observations, reflection.strengths, reflection.improvements]);
+
+  const generateAIPrompts = async () => {
+    if (isLoadingSuggestions) return;
+    setIsLoadingSuggestions(true);
+    try {
+      const suggestions = await getReflectionSuggestions(
+        reflection.observations,
+        reflection.strengths,
+        reflection.improvements,
+        reflection.surprises,
+        aiInsights
+      );
+      setAiSuggestions(suggestions);
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setIsLoadingSuggestions(false); 
+    }
+  };
+
+  const handleFieldFocus = (fieldKey: string) => {
+    setFocusedFieldKey(fieldKey);
+  };
+
+  const startRecording = async (field: string) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => { 
+        if (event.data.size > 0) audioChunksRef.current.push(event.data); 
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+        setIsTranscribing(true);
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          try {
+            const base64Audio = (reader.result as string).split(',')[1];
+            const transcription = await transcribeAudio(base64Audio, audioBlob.type);
+            if (transcription && transcription.trim()) {
+              setReflection(prevRef => ({ 
+                ...prevRef, 
+                [field]: prevRef[field as keyof ReflectionData] 
+                  ? `${prevRef[field as keyof ReflectionData].trim()}\n${transcription.trim()}` 
+                  : transcription.trim() 
+              }));
+            }
+          } catch (err) {
+            console.error("Transcription failed", err);
+            alert("Nepavyko perrašyti garso. Bandykite dar kartą.");
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingField(field);
+    } catch (err) { 
+      alert("Nepavyko pasiekti mikrofono."); 
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setRecordingField(null);
+    }
+  };
+
+  const insertSuggestion = (field: keyof ReflectionData, suggestion: string) => {
+    setReflection(prevRef => {
+      const currentVal = prevRef[field];
+      const newVal = currentVal && currentVal.trim().length > 0 
+        ? `${currentVal.trim()}\n• ${suggestion}` 
+        : `• ${suggestion}`;
+      return { ...prevRef, [field]: newVal };
+    });
+  };
+
   const currentStepFields = steps[currentStep].fields;
   const isStepValid = currentStepFields.every(field => {
     const val = (reflection as any)[field.key];
@@ -252,36 +277,25 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
     }
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleWizardComplete = () => {
+    localStorage.removeItem(WIZARD_STEP_KEY);
+    onComplete();
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 pb-12 relative">
-      {/* Resume Draft Prompt */}
-      {showResumePrompt && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
-          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl text-center animate-scale-in">
-            <h3 className="text-2xl font-black mb-4 tracking-tight">Tęsti nebaigtą darbą?</h3>
-            <p className="text-gray-500 mb-8 font-medium">Radome išsaugotą jūsų refleksijos juodraštį.</p>
-            <div className="flex flex-col gap-4">
-              <button onClick={() => { 
-                const d = JSON.parse(localStorage.getItem(DRAFT_KEY)!); 
-                setReflection(d.reflection); 
-                setCurrentStep(d.currentStep); 
-                setShowResumePrompt(false); 
-              }} className="bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">Tęsti pildymą</button>
-              <button onClick={() => { 
-                localStorage.removeItem(DRAFT_KEY); 
-                setShowResumePrompt(false); 
-              }} className="bg-gray-100 text-gray-500 font-bold py-4 rounded-2xl hover:bg-gray-200 transition-all">Pradėti iš naujo</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Exit Confirmation */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl text-center">
             <h3 className="text-2xl font-black mb-4 tracking-tight text-rose-600">Išeiti iš refleksijos?</h3>
-            <p className="text-gray-500 mb-8 font-medium">Jūsų progresas išsaugotas kaip juodraštis, bet grįšite į duomenų apžvalgą.</p>
+            <p className="text-gray-500 mb-8 font-medium">Jūsų progresas yra išsaugotas, bet grįšite į duomenų apžvalgą.</p>
             <div className="flex flex-col gap-4">
               <button onClick={() => { setShowExitConfirm(false); onBack(); }} className="bg-gray-900 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all">Taip, išeiti</button>
               <button onClick={() => setShowExitConfirm(false)} className="bg-indigo-50 text-indigo-600 font-black py-4 rounded-2xl hover:bg-indigo-100 transition-all">Likti ir pildyti</button>
@@ -325,7 +339,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                 Grįžti ir taisyti
               </button>
               <button 
-                onClick={() => { setShowFinalConfirm(false); onComplete(); }} 
+                onClick={handleWizardComplete} 
                 className="bg-indigo-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-indigo-100 transition-all active:scale-95 text-sm"
               >
                 Patvirtinti ir baigti
@@ -408,13 +422,56 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                         )}
                       </div>
                     )}
+                    
+                    {field.key === 'observations' && (
+                      <div className="flex gap-2">
+                        <div className="relative">
+                          <button 
+                            onClick={() => setShowObservationsMenu(!showObservationsMenu)} 
+                            className="h-10 px-4 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center gap-2 hover:bg-slate-200 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95"
+                          >
+                            <i className="fas fa-list-check"></i> Komentuoti
+                          </button>
+                          {showObservationsMenu && (
+                            <div className="absolute right-0 top-12 z-[100] bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 w-52 animate-fade-in">
+                              <div className="grid gap-1">
+                                {observationsList.map(obs => (
+                                  <button key={obs} onClick={() => { insertSuggestion('observations', obs); setShowObservationsMenu(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-bold transition-all flex items-center justify-between group">
+                                    {obs} <i className="fas fa-plus opacity-0 group-hover:opacity-100 text-[10px]"></i>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <button 
+                          onClick={() => isThisRecording ? stopRecording() : startRecording(field.key)} 
+                          disabled={isTranscribing}
+                          className={`h-10 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95 ${
+                            isThisRecording 
+                              ? 'bg-rose-500 text-white shadow-rose-200' 
+                              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                          } ${isTranscribing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <i className={`fas ${isThisRecording ? 'fa-stop' : 'fa-microphone'} ${isThisRecording ? 'animate-pulse' : ''}`}></i>
+                          <span>{isThisRecording ? `Stop (${formatTime(recordingTime)})` : 'Record Observation'}</span>
+                        </button>
+                      </div>
+                    )}
+
                     <button 
                       onClick={() => isThisRecording ? stopRecording() : startRecording(field.key)} 
-                      className={`h-10 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95 ${isThisRecording ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}
+                      disabled={isTranscribing}
+                      className={`h-10 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm font-black text-[10px] uppercase tracking-widest active:scale-95 ${
+                        isThisRecording 
+                          ? 'bg-rose-500 text-white shadow-rose-200' 
+                          : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                      } ${isTranscribing ? 'opacity-50 cursor-not-allowed' : ''}`}
                       title={isThisRecording ? "Sustabdyti" : "Įrašyti balsu"}
                     >
-                      <i className={`fas ${isThisRecording ? 'fa-stop' : 'fa-microphone'}`}></i>
-                      <span>{isThisRecording ? 'Sustabdyti' : 'Įrašyti balsu'}</span>
+                      <i className={`fas ${isThisRecording ? 'fa-stop' : 'fa-microphone'} ${isThisRecording ? 'animate-pulse' : ''}`}></i>
+                      <span>{isThisRecording ? `Sustabdyti (${formatTime(recordingTime)})` : 'Įrašyti balsu'}</span>
                     </button>
                   </div>
                 </div>
@@ -430,13 +487,14 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                     } ${isFocused ? 'ring-4 ring-indigo-500/5' : ''}`}
                   ></textarea>
                   {isTranscribing && recordingField === field.key && (
-                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm rounded-3xl flex items-center justify-center font-black text-indigo-600 text-[10px] tracking-[0.3em] uppercase">
-                      Perrašoma...
+                    <div className="absolute inset-0 bg-white/70 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center gap-3 animate-fade-in">
+                      <div className="w-6 h-6 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                      <span className="font-black text-indigo-600 text-[9px] tracking-[0.3em] uppercase">Perrašoma...</span>
                     </div>
                   )}
                 </div>
 
-                {/* AI Suggestions Section */}
+                {/* AI Suggestions Section - Visible only when focused */}
                 {isFocused && field.suggestionsKey && (
                   <div className="space-y-4 animate-fade-in">
                     {aiSuggestions[field.suggestionsKey]?.length > 0 ? (
