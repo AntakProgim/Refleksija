@@ -149,20 +149,23 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
     }
   ];
 
-  // AI Suggestions Trigger
+  // AI Suggestions Trigger - triggers automatically on step change or focus
   useEffect(() => {
-    const currentStepFields = steps[currentStep].fields;
-    const focusedField = currentStepFields.find(f => f.key === focusedFieldKey);
-    
-    if (focusedField?.suggestionsKey && aiInsights) {
+    // We trigger suggestion loading when navigating to step 2 or later, 
+    // or when any field with a suggestionsKey is focused.
+    const currentFields = steps[currentStep].fields;
+    const focusedField = currentFields.find(f => f.key === focusedFieldKey);
+    const shouldGenerate = aiInsights && (currentStep >= 1 || focusedField?.suggestionsKey);
+
+    if (shouldGenerate) {
       const timer = setTimeout(() => {
         generateAIPrompts();
-      }, 500); // Slightly longer debounce for better reasoning
+      }, 800); 
       return () => clearTimeout(timer);
     }
   }, [
-    focusedFieldKey, 
     currentStep, 
+    focusedFieldKey, 
     reflection.observations, 
     reflection.strengths, 
     reflection.improvements, 
@@ -290,7 +293,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const handleWizardComplete = () => {
@@ -492,18 +495,28 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                 {/* AI Suggestions Section - Visible only when focused */}
                 {isFocused && field.suggestionsKey && (
                   <div className="space-y-4 animate-fade-in">
-                    {aiSuggestions[field.suggestionsKey]?.length > 0 ? (
-                      <div className="bg-indigo-50/40 p-6 rounded-[2rem] border border-indigo-100/30 space-y-4">
+                    <div className="bg-indigo-50/40 p-6 rounded-[2rem] border border-indigo-100/30 space-y-4">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
                           <i className="fas fa-magic"></i> Mentoriaus įžvalgos pagal mokinių temas
                         </div>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {aiInsights?.themes?.map((theme: any, tIdx: number) => (
-                            <span key={tIdx} className="text-[8px] font-black uppercase tracking-tighter bg-white/50 text-indigo-500 px-2 py-0.5 rounded-full border border-indigo-100">
-                              {theme.label}
-                            </span>
-                          ))}
-                        </div>
+                        {isLoadingSuggestions && (
+                          <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
+                             <span className="text-[8px] font-black text-indigo-300 uppercase">Naujinama...</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {aiInsights?.themes?.map((theme: any, tIdx: number) => (
+                          <span key={tIdx} className="text-[8px] font-black uppercase tracking-tighter bg-white/50 text-indigo-500 px-2 py-0.5 rounded-full border border-indigo-100">
+                            {theme.label}
+                          </span>
+                        ))}
+                      </div>
+
+                      {aiSuggestions[field.suggestionsKey]?.length > 0 ? (
                         <div className="grid gap-2">
                           {aiSuggestions[field.suggestionsKey].map((s: string, idx: number) => (
                             <button key={idx} onClick={() => insertSuggestion(field.key as any, s)} className="text-left text-[11px] bg-white p-3.5 rounded-xl border border-indigo-100/30 hover:border-indigo-400 hover:shadow-md transition-all text-gray-600 leading-relaxed group active:scale-[0.98]">
@@ -511,12 +524,12 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                             </button>
                           ))}
                         </div>
-                      </div>
-                    ) : isLoadingSuggestions ? (
-                      <div className="h-20 bg-gray-50/50 rounded-[2rem] border border-gray-100 animate-pulse flex items-center justify-center">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-300">Generuojami teminiai pasiūlymai...</span>
-                      </div>
-                    ) : null}
+                      ) : !isLoadingSuggestions && (
+                        <div className="py-4 text-center">
+                          <p className="text-[10px] text-gray-400 italic">Pasiūlymų kol kas nėra. Užpildykite ankstesnius žingsnius.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

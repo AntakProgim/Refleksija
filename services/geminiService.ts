@@ -77,26 +77,26 @@ export const getReflectionSuggestions = async (
 ) => {
   const prompt = `
     Esi aukšto lygio pedagoginis mentorius. Mokytojas pildo savirefleksiją po mokinių apklausos.
-    Tavo užduotis: pateikti pasiūlymus, kurie padėtų mokytojui susieti savo mintis su KONKREČIOMIS MOKINIŲ ĮVARDINTOMIS TEMOMIS.
+    Tavo užduotis: pateikti pasiūlymus, kurie padėtų mokytojui susieti savo mintis su KONKREČIOMIS MOKINIŲ ĮVARDINTOMIS TEMOMIS IR EMOCIJOMIS.
     
-    DUOMENŲ ANALIZĖS REZULTATAI (MOKINIŲ BALSAS):
-    - Pagrindinės temos (themes): ${JSON.stringify(aiInsights?.themes || [])}
-    - Mokinių pastebėtos stiprybės: ${aiInsights?.strengths || 'Nenurodyta'}
+    MOKINIŲ ANALIZĖ (PAGRINDAS):
+    - Identifikuotos temas: ${JSON.stringify(aiInsights?.themes || [])}
+    - Mokinių įvardintos stiprybės: ${aiInsights?.strengths || 'Nenurodyta'}
     - Mokinių įvardintos silpnybės: ${aiInsights?.improvements || 'Nenurodyta'}
+    - Bendras sentimentas: ${aiInsights?.sentimentScore}/100
 
-    MOKYTOJO DABARTINĖS MINTYS:
-    - Pastebėjimai: ${observations || 'Dar nepildyta'}
-    - Stiprybės: ${strengths || 'Dar nepildyta'}
-    - Tobulėjimas: ${improvements || 'Dar nepildyta'}
-    - Netikėtumai: ${surprises || 'Dar nepildyta'}
+    MOKYTOJO KONTEKSTAS:
+    - Pastebėjimai: ${observations || 'Nepildyta'}
+    - Stiprybės: ${strengths || 'Nepildyta'}
+    - Tobulėjimas: ${improvements || 'Nepildyta'}
+    - Netikėtumai: ${surprises || 'Nepildyta'}
 
-    INSTRUKCIJA:
-    Sugeneruok po 3-4 itin konkrečius pasiūlymus kiekvienai kategorijai. 
-    KIEKVIENAS pasiūlymas privalo būti TIESIOGIAI pririštas prie bent vienos iš aukščiau nurodytų temų (themes). 
-    Pvz., jei tema yra „Emocinis saugumas“, pasiūlymas pastebėjimams turi padėti mokytojui rasti priežastis duomenyse, kodėl vaikai taip jaučiasi. 
-    Pasiūlymas veiksmams turi siūlyti konkretų metodą, kaip tą saugumą didinti.
+    UŽDUOTIS:
+    Sugeneruok po 4 itin konkrečius, praktinius pasiūlymus kiekvienai kategorijai lietuvių kalba.
+    Kiekvienas pasiūlymas privalo spręsti bent vieną iš "themes" arba reaguoti į mokinių nuotaikas.
+    Venk bendrų frazių ("reikia daugiau dirbti"). Siūlyk konkrečius veiksmus (pvz., "Kiekvienos pamokos pabaigoje skirk 2 min. anoniminiam 'exit ticket' grįžtamajam ryšiui apie tempo tinkamumą").
 
-    Atsakymą pateik JSON formatu lietuvių kalba.
+    Atsakymą pateik JSON formatu.
   `;
 
   try {
@@ -108,12 +108,12 @@ export const getReflectionSuggestions = async (
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            observationSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Pasiūlymai ką dar pastebėti duomenyse per temų prizmę" },
-            analysisSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Kaip susieti metodus su temomis" },
-            bestPracticeSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Konkretūs metodai stiprinantys pozityvias temas" },
-            emotionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Kaip jaustis dėl specifinių mokinių atsiliepimų" },
-            actionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Veiksmai sprendžiantys temų problemas" },
-            nextStepSuggestions: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Indikatoriai specifinių temų pokyčiui matuoti" }
+            observationSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            analysisSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            bestPracticeSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            emotionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            actionSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            nextStepSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: [
             "observationSuggestions", 
