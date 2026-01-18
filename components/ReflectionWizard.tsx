@@ -30,6 +30,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [touchedSteps, setTouchedSteps] = useState<Set<number>>(new Set());
   const [focusedFieldKey, setFocusedFieldKey] = useState<string | null>(null);
+  const [expandedSuggestionsField, setExpandedSuggestionsField] = useState<string | null>(null);
   
   // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
@@ -151,8 +152,6 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
 
   // AI Suggestions Trigger - triggers automatically on step change or focus
   useEffect(() => {
-    // We trigger suggestion loading when navigating to step 2 or later, 
-    // or when any field with a suggestionsKey is focused.
     const currentFields = steps[currentStep].fields;
     const focusedField = currentFields.find(f => f.key === focusedFieldKey);
     const shouldGenerate = aiInsights && (currentStep >= 1 || focusedField?.suggestionsKey);
@@ -194,6 +193,10 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
 
   const handleFieldFocus = (fieldKey: string) => {
     setFocusedFieldKey(fieldKey);
+  };
+
+  const toggleSuggestions = (fieldKey: string) => {
+    setExpandedSuggestionsField(prev => prev === fieldKey ? null : fieldKey);
   };
 
   const startRecording = async (field: string) => {
@@ -276,6 +279,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
       setTimeout(() => {
         setCurrentStep(currentStep + 1);
         setAnimating(false);
+        setExpandedSuggestionsField(null);
       }, 200);
     } else {
       setShowFinalConfirm(true);
@@ -396,13 +400,15 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
           <p className="text-gray-500 font-medium">{steps[currentStep].description}</p>
         </header>
 
-        <div className="space-y-12">
+        <div className="space-y-10">
           {steps[currentStep].fields.map((field) => {
             const val = (reflection as any)[field.key];
             const isEmpty = !val || val.trim().length === 0;
             const showError = isEmpty && touchedSteps.has(currentStep);
             const isFocused = focusedFieldKey === field.key;
             const isThisRecording = isRecording && recordingField === field.key;
+            const isSuggestionsExpanded = expandedSuggestionsField === field.key;
+            const fieldSuggestions = aiSuggestions[field.suggestionsKey || ''];
 
             return (
               <div key={field.key} className="space-y-4">
@@ -474,6 +480,61 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                   </div>
                 </div>
 
+                {/* Concised AI Suggestions Bar - Always visible above textarea if focused */}
+                {isFocused && field.suggestionsKey && (
+                  <div className="animate-fade-in">
+                    <button 
+                      onClick={() => toggleSuggestions(field.key)}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                        isSuggestionsExpanded 
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
+                        : 'bg-indigo-50/50 border-indigo-50 text-indigo-600 hover:bg-indigo-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <i className={`fas ${isLoadingSuggestions ? 'fa-circle-notch fa-spin' : 'fa-magic'} text-sm`}></i>
+                        <span className="text-[10px] font-black uppercase tracking-widest">
+                          {isLoadingSuggestions 
+                            ? 'Generuojami pasiūlymai...' 
+                            : isSuggestionsExpanded ? 'Slėpti mentoriaus įžvalgas' : `DI Mentoriaus įžvalgos (${fieldSuggestions?.length || 0})`
+                          }
+                        </span>
+                      </div>
+                      <i className={`fas fa-chevron-${isSuggestionsExpanded ? 'up' : 'down'} text-xs opacity-60`}></i>
+                    </button>
+
+                    {/* Expandable Suggestions Body */}
+                    {isSuggestionsExpanded && (
+                      <div className="mt-3 p-6 bg-white border-2 border-indigo-100/50 rounded-[2rem] shadow-xl animate-scale-in space-y-6">
+                        <div className="flex flex-wrap gap-2">
+                          {aiInsights?.themes?.map((theme: any, tIdx: number) => (
+                            <span key={tIdx} className="text-[8px] font-black uppercase tracking-tighter bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full border border-indigo-100">
+                              {theme.label}
+                            </span>
+                          ))}
+                        </div>
+
+                        {fieldSuggestions?.length > 0 ? (
+                          <div className="grid gap-3">
+                            {fieldSuggestions.map((s: string, idx: number) => (
+                              <button 
+                                key={idx} 
+                                onClick={() => { insertSuggestion(field.key as any, s); setExpandedSuggestionsField(null); }} 
+                                className="text-left text-[11px] bg-slate-50 p-4 rounded-xl border border-transparent hover:border-indigo-400 hover:bg-white transition-all text-gray-700 leading-relaxed group active:scale-[0.98] flex items-start gap-3"
+                              >
+                                <i className="fas fa-plus mt-0.5 opacity-0 group-hover:opacity-100 text-indigo-600 transition-opacity"></i>
+                                <span>{s}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : !isLoadingSuggestions && (
+                          <p className="text-center text-[10px] text-gray-400 italic py-4">Pasiūlymų kol kas nėra. Užpildykite ankstesnius žingsnius, kad DI suprastų jūsų kontekstą.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="relative">
                   <textarea 
                     value={val} 
@@ -481,7 +542,7 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                     onFocus={() => handleFieldFocus(field.key)}
                     placeholder={field.placeholder} 
                     className={`w-full h-32 p-6 rounded-3xl border-2 transition-all outline-none resize-none font-medium text-gray-700 leading-relaxed placeholder:italic placeholder:text-gray-300 ${
-                      showError ? 'border-rose-100 bg-rose-50/20 focus:border-rose-300' : 'border-gray-50 bg-gray-50/30 focus:bg-white focus:border-indigo-500/50'
+                      showError ? 'border-rose-100 bg-rose-50/20 focus:border-rose-300' : 'border-gray-100 bg-gray-50/30 focus:bg-white focus:border-indigo-500/50'
                     } ${isFocused ? 'ring-4 ring-indigo-500/5' : ''}`}
                   ></textarea>
                   {isTranscribing && recordingField === field.key && (
@@ -491,47 +552,6 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
                     </div>
                   )}
                 </div>
-
-                {/* AI Suggestions Section - Visible only when focused */}
-                {isFocused && field.suggestionsKey && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="bg-indigo-50/40 p-6 rounded-[2rem] border border-indigo-100/30 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
-                          <i className="fas fa-magic"></i> Mentoriaus įžvalgos pagal mokinių temas
-                        </div>
-                        {isLoadingSuggestions && (
-                          <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
-                             <span className="text-[8px] font-black text-indigo-300 uppercase">Naujinama...</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {aiInsights?.themes?.map((theme: any, tIdx: number) => (
-                          <span key={tIdx} className="text-[8px] font-black uppercase tracking-tighter bg-white/50 text-indigo-500 px-2 py-0.5 rounded-full border border-indigo-100">
-                            {theme.label}
-                          </span>
-                        ))}
-                      </div>
-
-                      {aiSuggestions[field.suggestionsKey]?.length > 0 ? (
-                        <div className="grid gap-2">
-                          {aiSuggestions[field.suggestionsKey].map((s: string, idx: number) => (
-                            <button key={idx} onClick={() => insertSuggestion(field.key as any, s)} className="text-left text-[11px] bg-white p-3.5 rounded-xl border border-indigo-100/30 hover:border-indigo-400 hover:shadow-md transition-all text-gray-600 leading-relaxed group active:scale-[0.98]">
-                              <i className="fas fa-plus mr-2 opacity-0 group-hover:opacity-100 text-indigo-500 transition-opacity"></i> {s}
-                            </button>
-                          ))}
-                        </div>
-                      ) : !isLoadingSuggestions && (
-                        <div className="py-4 text-center">
-                          <p className="text-[10px] text-gray-400 italic">Pasiūlymų kol kas nėra. Užpildykite ankstesnius žingsnius.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             );
           })}

@@ -2,10 +2,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { QuestionSummary } from "../types";
 
-// Init Gemini API with key from environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: string[]) => {
+  // Init Gemini API with key from environment right before the call
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   const prompt = `
     Esi pedagoginis mentorius ir duomenų analitikas. Tau pateikiama mokslo metų pabaigos apklausos santrauka, kurią pildė MOKINIAI. 
     Tavo užduotis - analizuoti duomenis iš mokinio perspektyvos: kaip jie jaučiasi pamokose, ar jiems suprantamas turinys, koks jų santykis su mokytoju.
@@ -75,6 +75,9 @@ export const getReflectionSuggestions = async (
   surprises: string,
   aiInsights: any
 ) => {
+  // Init Gemini API with key from environment right before the call
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
   const prompt = `
     Esi aukšto lygio pedagoginis mentorius. Mokytojas pildo savirefleksiją po mokinių apklausos.
     Tavo užduotis: pateikti pasiūlymus, kurie padėtų mokytojui susieti savo mintis su KONKREČIOMIS MOKINIŲ ĮVARDINTOMIS TEMOMIS IR EMOCIJOMIS.
@@ -141,6 +144,9 @@ export const getReflectionSuggestions = async (
 };
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string) => {
+  // Init Gemini API with key from environment right before the call
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
