@@ -4,6 +4,7 @@ import { AppStep, SurveyRow, QuestionSummary, LIKERT_VALUES, ReflectionData, CAT
 import CSVUpload from './components/CSVUpload';
 import SummaryDashboard from './components/SummaryDashboard';
 import ReflectionWizard from './components/ReflectionWizard';
+import GoogleChatShare from './components/GoogleChatShare';
 import { getAIInsights } from './services/geminiService';
 
 const SESSION_DRAFT_KEY = 'teacher_reflection_session_v1';
@@ -108,23 +109,27 @@ const App: React.FC = () => {
       if (rawHeader.toLowerCase().includes('laiko žymė')) return;
       const cleanedHeader = rawHeader.match(/\[(.*?)\]/)?.[1] || rawHeader.trim();
       
-      let sum = 0, validCount = 0, isNumeric = false;
+      let sum = 0, validCount = 0;
+      let totalNonEmpty = 0;
       const counts: { [val: string]: number } = {};
 
       rows.forEach(row => {
         const val = row[rawHeader]?.trim();
         if (val) {
+          totalNonEmpty++;
           counts[val] = (counts[val] || 0) + 1;
           const normalizedVal = val.endsWith('.') ? val.slice(0, -1) : val;
           if (LIKERT_VALUES[normalizedVal] || LIKERT_VALUES[val]) { 
             sum += (LIKERT_VALUES[normalizedVal] || LIKERT_VALUES[val]); 
             validCount++; 
-            isNumeric = true; 
           }
         }
       });
 
-      if (isNumeric && validCount > 0) {
+      // Jei daugiau nei pusė atsakymų yra Likert skalės, tai laikome kiekybiniu
+      const isNumericColumn = validCount > 0 && (validCount >= totalNonEmpty * 0.5);
+
+      if (isNumericColumn) {
         const categoryKey = Object.keys(CATEGORY_MAP).find(k => cleanedHeader.toLowerCase().includes(k.toLowerCase()));
         newSummaries.push({
           question: cleanedHeader,
@@ -137,7 +142,7 @@ const App: React.FC = () => {
       } else {
         rows.forEach(row => { 
           const val = row[rawHeader]?.trim();
-          if (val && val.length > 5 && !LIKERT_VALUES[val]) feedback.push(val); 
+          if (val && val.length >= 2 && !LIKERT_VALUES[val]) feedback.push(val); 
         });
       }
     });
@@ -198,8 +203,24 @@ const App: React.FC = () => {
               <i className="fas fa-external-link-alt"></i> Ugdymo kokybė
             </a>
             {step !== AppStep.UPLOAD && (
-              <button onClick={() => window.location.reload()} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-indigo-600 transition-colors">
-                Nauja analizė
+              <button 
+                onClick={() => {
+                  if (confirm('Ar tikrai norite nutraukti šią analizę? Visi neišsaugoti duomenys bus prarasti.')) {
+                    localStorage.removeItem(SESSION_DRAFT_KEY);
+                    setStep(AppStep.UPLOAD);
+                    setSummaries([]);
+                    setOpenFeedback([]);
+                    setAiInsights(null);
+                    setReflection({
+                      observations: '', strengths: '', improvements: '', surprises: '',
+                      bestPractices: '', heartFeelings: '', headThoughts: '',
+                      actionStop: '', actionStart: '', actionContinue: '', nextSteps: ''
+                    });
+                  }
+                }} 
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-rose-600 transition-colors"
+              >
+                Nutraukti
               </button>
             )}
           </div>
@@ -231,6 +252,71 @@ const App: React.FC = () => {
             )}
 
             <CSVUpload onParsed={handleDataParsed} />
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center py-4 bg-white/50 backdrop-blur-sm p-6 rounded-[2rem] border border-gray-100">
+              <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">Neturite apklausos failo?</span>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sampleSummaries: QuestionSummary[] = [
+                      {
+                        question: "Mokytojas suprantamai paaiškina naują medžiagą",
+                        counts: { "Visiškai sutinku": 15, "Labiau sutinku": 8, "Sutinku iš dalies": 2, "Nesutinku": 0 },
+                        total: 25,
+                        averageScore: 4.5,
+                        category: "Mokymas"
+                      },
+                      {
+                        question: "Mokytojas laiku pateikia atsiskaitymų įvertinimus",
+                        counts: { "Visiškai sutinku": 8, "Labiau sutinku": 10, "Sutinku iš dalies": 5, "Nesutinku": 2 },
+                        total: 25,
+                        averageScore: 3.9,
+                        category: "Grįžtamasis ryšys"
+                      },
+                      {
+                        question: "Pamokose jaučiuosi saugiai ir gerbiamas",
+                        counts: { "Visiškai sutinku": 20, "Labiau sutinku": 4, "Sutinku iš dalies": 1, "Nesutinku": 0 },
+                        total: 25,
+                        averageScore: 4.8,
+                        category: "Klimatas"
+                      },
+                      {
+                        question: "Mokytojas skatina mane aktyviai dalyvauti pamokoje",
+                        counts: { "Visiškai sutinku": 12, "Labiau sutinku": 9, "Sutinku iš dalies": 3, "Nesutinku": 1 },
+                        total: 25,
+                        averageScore: 4.3,
+                        category: "Įsitraukimas"
+                      }
+                    ];
+                    const sampleOpenFeedback: string[] = [
+                      "Labai įdomios pamokos, mokytojas visada padeda.",
+                      "Norėtųsi greitesnio kontrolinių darbų įvertinimo.",
+                      "Jauki atmosfera pamokose, visi esame lygūs.",
+                      "Patinka dirbti grupėse, bet kartais būna triukšminga."
+                    ];
+                    setSummaries(sampleSummaries);
+                    setOpenFeedback(sampleOpenFeedback);
+                    setStep(AppStep.ANALYSIS);
+                  }}
+                  className="px-6 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer"
+                >
+                  <i className="fas fa-magic mr-1.5"></i> Užpildyti pavyzdinius duomenis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSummaries([]);
+                    setOpenFeedback([]);
+                    setAiInsights(null);
+                    setStep(AppStep.REFLECTION);
+                  }}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-indigo-100 cursor-pointer"
+                >
+                  <i className="fas fa-pencil mr-1.5"></i> Pradėti refleksiją tiesiogiai
+                </button>
+              </div>
+            </div>
             
             {history.length > 0 && (
               <div className="space-y-4">
@@ -300,6 +386,14 @@ const App: React.FC = () => {
             </div>
 
             <div className="space-y-16 print:space-y-10">
+              <div className="print:hidden">
+                <GoogleChatShare 
+                  reflection={reflection} 
+                  aiInsights={aiInsights} 
+                  dateStr={new Date().toLocaleDateString('lt-LT')} 
+                />
+              </div>
+
               {/* Only show AI Insights if they exist */}
               {aiInsights && (
                 <section className="report-section bg-slate-50 p-8 rounded-[2rem] border border-gray-100 print:bg-white">
@@ -313,6 +407,19 @@ const App: React.FC = () => {
                       <h4 className="text-[10px] font-black uppercase text-rose-600 mb-2">Tobulėtinos sritys</h4>
                       <p className="text-sm text-gray-700 leading-relaxed">{aiInsights.improvements}</p>
                     </div>
+                  </div>
+                </section>
+              )}
+
+              {openFeedback && openFeedback.length > 0 && (
+                <section className="report-section bg-white p-8 rounded-[2rem] border border-gray-100 print:p-0 print:border-none print:mt-10">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6"><i className="fas fa-comment-dots"></i> Mokinių pastebėjimai ir idėjos</h3>
+                  <div className="grid md:grid-cols-2 gap-4 print:grid-cols-1">
+                    {openFeedback.map((comment, idx) => (
+                      <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-gray-100 text-sm text-gray-700 italic leading-relaxed print:bg-transparent print:border-l-4 print:border-l-gray-300 print:rounded-none print:py-2 print:px-4">
+                        "{comment}"
+                      </div>
+                    ))}
                   </div>
                 </section>
               )}

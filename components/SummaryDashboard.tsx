@@ -196,18 +196,50 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
             );
           })}
         </div>
+
+        {feedback && feedback.length > 0 && (
+          <>
+            <div className="flex items-center gap-4 px-2 pt-8">
+              <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em]">Atviri atsakymai</h3>
+              <div className="h-px flex-1 bg-gray-200/60"></div>
+            </div>
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-6">
+              <h3 className="text-sm font-black text-gray-800 flex items-center gap-3 mb-4">
+                <i className="fas fa-comment-dots text-indigo-500 text-xs"></i> Mokinių idėjos ir patarimai
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {feedback.map((comment, idx) => (
+                  <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-gray-100 text-sm text-gray-700 italic leading-relaxed">
+                    "{comment}"
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="flex justify-center pt-8 gap-4">
+      <div className="flex flex-wrap justify-center pt-8 gap-4">
+        <button 
+          onClick={() => {
+            if (confirm('Ar tikrai norite nutraukti refleksiją? Neišsaugoti duomenys bus prarasti.')) {
+              localStorage.removeItem('teacher_reflection_session_v1');
+              window.location.reload();
+            }
+          }}
+          className="bg-white border-2 border-rose-100 text-rose-600 px-8 py-6 rounded-[2rem] font-black transition-all shadow-md active:scale-95 hover:bg-rose-50"
+        >
+          Nutraukti
+        </button>
         <button 
           onClick={onFinish}
-          className="bg-white border-2 border-indigo-100 text-indigo-600 px-12 py-6 rounded-[2rem] font-black transition-all shadow-xl active:scale-95"
+          className="bg-white border-2 border-indigo-100 text-indigo-600 px-8 md:px-12 py-6 rounded-[2rem] font-black transition-all shadow-xl active:scale-95 hover:bg-indigo-50"
         >
           Baigti ir išsaugoti tik analizę
         </button>
         <button 
           onClick={onNext}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-16 py-6 rounded-[2rem] font-black transition-all shadow-2xl shadow-indigo-200 active:scale-95 flex items-center gap-4 text-lg"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 md:px-16 py-6 rounded-[2rem] font-black transition-all shadow-2xl shadow-indigo-200 active:scale-95 flex items-center gap-4 text-base md:text-lg"
         >
           Tęsti refleksiją <i className="fas fa-chevron-right"></i>
         </button>
