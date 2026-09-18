@@ -234,27 +234,41 @@ const ReflectionWizard: React.FC<ReflectionWizardProps> = ({
   const handleDraftAllFieldsInStep = async () => {
     setIsDraftingStep(true);
     const fields = steps[currentStep].fields;
-    for (const f of fields) {
-      const currentVal = (reflection as any)[f.key] || '';
-      if (!currentVal.trim()) {
-        try {
-          const drafted = await getDraftFieldSuggestion(
-            f.key,
-            f.label,
-            '',
-            summaries,
-            openFeedback,
-            aiInsights
-          );
-          if (drafted && drafted.trim()) {
-            setReflection(prev => ({ ...prev, [f.key]: drafted.trim() }));
+    try {
+      const draftPromises = fields.map(async (f) => {
+        const currentVal = ((reflection as any)[f.key] as string) || '';
+        const drafted = await getDraftFieldSuggestion(
+          f.key,
+          f.label,
+          currentVal,
+          summaries,
+          openFeedback,
+          aiInsights
+        );
+        return { key: f.key, drafted, currentVal };
+      });
+
+      const results = await Promise.all(draftPromises);
+
+      setReflection(prev => {
+        const next = { ...prev };
+        for (const r of results) {
+          if (r.drafted && r.drafted.trim().length > 0) {
+            const existing = (prev as any)[r.key] || '';
+            if (!existing || !existing.trim()) {
+              (next as any)[r.key] = r.drafted.trim();
+            } else if (!existing.includes(r.drafted.trim())) {
+              (next as any)[r.key] = `${existing.trim()}\n\n${r.drafted.trim()}`;
+            }
           }
-        } catch (e) {
-          console.error(e);
         }
-      }
+        return next;
+      });
+    } catch (e) {
+      console.error("Step draft error:", e);
+    } finally {
+      setIsDraftingStep(false);
     }
-    setIsDraftingStep(false);
   };
 
   const insertSuggestion = (field: keyof ReflectionData, suggestion: string) => {

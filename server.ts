@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { generateFieldDraft, generateReflectionSuggestions } from "./services/pedagogicalAnalysis";
 
 async function startServer() {
   const app = express();
@@ -181,39 +182,8 @@ async function startServer() {
 
       res.json(JSON.parse(response.text || "{}"));
     } catch (error) {
-      console.error("Suggestions error:", error);
-      res.status(500).json({ 
-        observationSuggestions: [
-          "Pastebiu, kad mokiniai labiausiai vertina aiškų temų paaiškinimą ir pagarbų bendravimą.",
-          "Mokinių atsakymai rodo, kad verta atkreipti dėmesį į užduočių apimtį ir atsiskaitymų terminus.",
-          "Klasės klimato klausimai vertinami stabiliai, tačiau išryškėja poreikis individualesniam dėmesiui."
-        ], 
-        analysisSuggestions: [
-          "Stiprybė: mokiniai pamokose jaučiasi saugūs ir skatinami kelti klausimus.",
-          "Tobulintina sritis: mokiniams kartais pritrūksta aiškumo dėl vertinimo kriterijų prieš atsiskaitymą.",
-          "Netikėtumas: vaikai nori dažniau dirbti grupėse su aiškiai paskirstytomis atsakomybėmis."
-        ], 
-        bestPracticeSuggestions: [
-          "Formatyvus grįžtamasis ryšys iš karto po praktinės užduoties atlikimo.",
-          "Aiškūs pamokos tikslai ir sėkmės kriterijai pamokos pradžioje.",
-          "Diferencijuotos užduotys pagal mokinių tempą."
-        ], 
-        emotionSuggestions: [
-          "Jaučiu profesinį pasitenkinimą matydamas mokinių atvirumą ir pasitikėjimą.",
-          "Jaučiu atsakomybę padėti tiems mokiniams, kurie patiria didesnį mokymosi nerimą.",
-          "Esu įkvėptas mokinių idėjų pamokų tobulinimui kitais metais."
-        ], 
-        actionSuggestions: [
-          "Nustosiu skubėti tikrinant visų užduočių atlikimą pamokoje – skirsiu laiko refleksijai.",
-          "Pradėsiu taikyti 2 minučių išėjimo bilietus ('exit tickets') supratimui įsivertinti.",
-          "Tęsiu atvirą dialogą su mokiniais ir individualių klausimų aptarimą po pamokos."
-        ], 
-        nextStepSuggestions: [
-          "Atlikti trumpą tarpinę mini-apklausą po pirmojo pusmečio.",
-          "Palyginti mokinių įsitraukimo rodiklius pritaikius naujus metodus.",
-          "Aptarti pažangą su mokiniais individualių pokalbių metu."
-        ]
-      });
+      console.warn("Suggestions error, using pedagogical generator:", error);
+      res.json(generateReflectionSuggestions());
     }
   });
 
@@ -249,10 +219,15 @@ async function startServer() {
         contents: prompt
       });
 
-      res.json({ draft: response.text?.trim() || "" });
+      const draftText = response.text?.trim();
+      if (draftText && draftText.length > 0) {
+        return res.json({ draft: draftText });
+      }
+      throw new Error("Empty draft response from AI");
     } catch (error) {
-      console.error("Draft field error:", error);
-      res.status(500).json({ error: "Failed to generate draft", draft: "" });
+      console.warn("Draft field AI error, using pedagogical generator:", error);
+      const fallbackDraft = generateFieldDraft(fieldKey, fieldLabel, currentNotes, summaries, openFeedback, aiInsights);
+      res.json({ draft: fallbackDraft });
     }
   });
 

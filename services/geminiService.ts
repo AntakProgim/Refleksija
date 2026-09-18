@@ -1,5 +1,9 @@
 import { QuestionSummary } from "../types";
-import { generatePedagogicalInsights } from "./pedagogicalAnalysis";
+import { 
+  generatePedagogicalInsights, 
+  generateFieldDraft, 
+  generateReflectionSuggestions 
+} from "./pedagogicalAnalysis";
 
 export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: string[]) => {
   try {
@@ -44,44 +48,17 @@ export const getReflectionSuggestions = async (
       body: JSON.stringify({ observations, strengths, improvements, surprises, aiInsights, summaries, openFeedback }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.observationSuggestions && data.observationSuggestions.length > 0) {
+        return data;
+      }
     }
-
-    return await response.json();
   } catch (error) {
-    console.error("Suggestions API call error:", error);
-    return { 
-      observationSuggestions: [
-        "Pastebiu, kad mokiniai vertina aiškų temų paaiškinimą ir pagarbų bendravimą.",
-        "Mokinių atsakymai rodo poreikį lankstesniam užduočių atlikimo tempui.",
-        "Klasės mikroklimatas stabilus, tačiau verta stiprinti tarpusavio bendradarbiavimą."
-      ], 
-      analysisSuggestions: [
-        "Stiprybė: mokiniai pamokoje jaučiasi saugūs ir skatinami kelti klausimus.",
-        "Tobulintina sritis: atsiskaitymo reikalavimų ir vertinimo kriterijų išankstinis aptarimas.",
-        "Netikėtumas: mokiniai nori aktyvesnių diskusijų ir darbo porose."
-      ], 
-      bestPracticeSuggestions: [
-        "Trumpas formatyvus grįžtamasis ryšys iš karto po atliktos užduoties.",
-        "Sėkmės kriterijų (rubrikų) vizualizavimas prieš pradedant darbą.",
-        "Diferencijuotos praktinės užduotys."
-      ], 
-      emotionSuggestions: [
-        "Jaučiu profesinį džiaugsmą matydamas mokinių atvirumą.",
-        "Jaučiu atsakomybę padėti mokiniams, patiriantiems didesnį mokymosi nerimą."
-      ], 
-      actionSuggestions: [
-        "Nustosiu skubėti tikrinant visų užduočių atlikimą – skirsiu laiko refleksijai.",
-        "Pradėsiu taikyti 2 minučių 'exit ticket' grįžtamajam ryšiui.",
-        "Tęsiu atvirą dialogą su mokiniais ir asmeninį palaikymą."
-      ], 
-      nextStepSuggestions: [
-        "Atlikti trumpą tarpinę mini-apklausą po pirmojo pusmečio.",
-        "Palyginti mokinių įsitraukimo rodiklius pritaikius naujus metodus."
-      ]
-    };
+    console.warn("Suggestions API fallback to pedagogical generator:", error);
   }
+
+  return generateReflectionSuggestions();
 };
 
 export const getDraftFieldSuggestion = async (
@@ -101,16 +78,17 @@ export const getDraftFieldSuggestion = async (
       body: JSON.stringify({ fieldKey, fieldLabel, currentNotes, summaries, openFeedback, aiInsights }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.draft && data.draft.trim().length > 0) {
+        return data.draft;
+      }
     }
-
-    const data = await response.json();
-    return data.draft || "";
   } catch (error) {
-    console.error("Draft field error:", error);
-    return "";
+    console.warn("Draft field API fallback to pedagogical generator:", error);
   }
+
+  return generateFieldDraft(fieldKey, fieldLabel, currentNotes, summaries, openFeedback, aiInsights);
 };
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string) => {
