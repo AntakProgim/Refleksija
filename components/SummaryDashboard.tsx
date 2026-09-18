@@ -13,6 +13,7 @@ interface SummaryDashboardProps {
   onNext: () => void;
   onFinish: () => void;
   onDownloadReport: () => void;
+  onRegenerateAI?: () => void;
 }
 
 const CustomYAxisTick = (props: any) => {
@@ -39,7 +40,8 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
   history,
   onNext,
   onFinish,
-  onDownloadReport
+  onDownloadReport,
+  onRegenerateAI
 }) => {
   const categories = [
     { name: 'Įsitraukimas', icon: 'fa-bolt-lightning' },
@@ -115,9 +117,43 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
 
       <div className="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 blur-[100px] rounded-full"></div>
-        <h3 className="text-xl font-black flex items-center gap-4 mb-8 relative z-10 uppercase tracking-widest text-[11px]">
-          <i className="fas fa-wand-magic-sparkles text-indigo-400"></i> Dirbtinio intelekto įžvalgos
-        </h3>
+        <div className="flex items-center justify-between mb-8 relative z-10">
+          <h3 className="text-xl font-black flex items-center gap-4 uppercase tracking-widest text-[11px]">
+            <i className="fas fa-wand-magic-sparkles text-indigo-400"></i> Dirbtinio intelekto įžvalgos
+          </h3>
+          {onRegenerateAI && (
+            <button
+              onClick={onRegenerateAI}
+              disabled={isAnalyzing}
+              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-indigo-200 hover:text-white text-xs font-bold transition-all flex items-center gap-2 border border-white/10 shadow-sm disabled:opacity-50"
+              title="Atnaujinti DI įžvalgas iš naujo"
+            >
+              <i className={`fas fa-arrows-rotate ${isAnalyzing ? 'animate-spin text-indigo-400' : ''}`}></i>
+              <span>{isAnalyzing ? 'Analizuojama...' : 'Atnaujinti analizę'}</span>
+            </button>
+          )}
+        </div>
+
+        {aiInsights?.strengths && aiInsights.strengths.includes('Nepavyko') && (
+          <div className="mb-8 p-4 rounded-2xl bg-amber-500/15 border border-amber-400/40 text-amber-100 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-3">
+              <i className="fas fa-triangle-exclamation text-amber-400 text-xl shrink-0"></i>
+              <div>
+                <span className="font-bold block text-white">Ankstesnis generavimas buvo nutrūkęs</span>
+                <span className="text-amber-200/90 text-[11px]">Spustelėkite mygtuką, kad sugeneruotumėte pilną pedagoginę analizę iš įkeltų duomenų.</span>
+              </div>
+            </div>
+            {onRegenerateAI && (
+              <button
+                onClick={onRegenerateAI}
+                disabled={isAnalyzing}
+                className="px-4 py-2 rounded-xl bg-amber-400 text-slate-950 font-black text-xs hover:bg-amber-300 transition-all shrink-0 uppercase tracking-wider flex items-center gap-2 shadow-md"
+              >
+                <i className="fas fa-rotate"></i> Sugeneruoti dabar
+              </button>
+            )}
+          </div>
+        )}
         
         {isAnalyzing ? (
           <div className="flex items-center gap-6 py-4 relative z-10">

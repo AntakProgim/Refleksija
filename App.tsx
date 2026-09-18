@@ -150,13 +150,25 @@ const App: React.FC = () => {
     setOpenFeedback(feedback);
   };
 
+  const handleRegenerateAI = () => {
+    if (summaries.length === 0) return;
+    setIsAnalyzing(true);
+    getAIInsights(summaries, openFeedback).then(res => {
+      setAiInsights(res);
+      setIsAnalyzing(false);
+    }).catch(err => {
+      console.error(err);
+      setIsAnalyzing(false);
+    });
+  };
+
   useEffect(() => {
-    if (step === AppStep.ANALYSIS && summaries.length > 0 && !aiInsights) {
-      setIsAnalyzing(true);
-      getAIInsights(summaries, openFeedback).then(res => {
-        setAiInsights(res);
-        setIsAnalyzing(false);
-      });
+    const isFailedInsights = aiInsights?.strengths && (
+      aiInsights.strengths.includes('Nepavyko') || 
+      aiInsights.strengths.includes('rankiniu būdu')
+    );
+    if (step === AppStep.ANALYSIS && summaries.length > 0 && (!aiInsights || isFailedInsights)) {
+      handleRegenerateAI();
     }
   }, [step, summaries, aiInsights, openFeedback]);
 
@@ -361,6 +373,7 @@ const App: React.FC = () => {
             onNext={() => setStep(AppStep.REFLECTION)} 
             onFinish={() => { setCustomTitle(''); setShowSaveModal(true); }}
             onDownloadReport={() => setStep(AppStep.REPORT)}
+            onRegenerateAI={handleRegenerateAI}
           />
         )}
         
