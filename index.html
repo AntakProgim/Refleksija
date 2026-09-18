@@ -4,9 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mokytojo Refleksijos pagalbininkas</title>
+    <title>Mokytojo refleksijos pagalbininkas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -31,11 +32,16 @@
         
         @media print {
             @page {
-                margin: 15mm;
-                size: A4;
+                margin: 12mm 14mm;
+                size: A4 portrait;
             }
             
-            /* Pašaliname viską, kas trukdo natūraliam lapų lūžiui */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
             html, body, #root, main {
                 height: auto !important;
                 min-height: 0 !important;
@@ -44,50 +50,58 @@
                 background: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                color: #0f172a !important;
             }
 
-            .print\:hidden { display: none !important; }
+            .print\:hidden { 
+                display: none !important; 
+            }
             
-            /* Ataskaitos konteinerio pritaikymas */
+            .print\:block {
+                display: block !important;
+            }
+
+            .print\:flex {
+                display: flex !important;
+            }
+
+            .print\:grid {
+                display: grid !important;
+            }
+
+            /* Report container fit for A4 */
             .report-container {
                 box-shadow: none !important;
                 border: none !important;
                 width: 100% !important;
-                max-width: none !important;
+                max-width: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 transform: none !important;
                 animation: none !important;
                 opacity: 1 !important;
                 display: block !important;
+                background: white !important;
             }
 
-            /* Puslapių lūžiai sekcijoms */
-            section, .report-section {
+            /* Prevent break inside cards and sections */
+            section, .report-section, .print-avoid-break {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
-                margin-bottom: 30px !important;
+                margin-bottom: 20px !important;
                 display: block !important;
-                clear: both;
             }
 
-            /* Teksto spalvos ir aiškumas */
-            h1, h2, h3, h4, h5, p, span, i {
-                color: black !important;
-                text-shadow: none !important;
+            .print-page-break {
+                page-break-before: always !important;
+                break-before: always !important;
             }
 
-            .bg-slate-900 {
-                background-color: transparent !important;
-                border: 1px solid #eee !important;
-                color: black !important;
-            }
-            
-            .text-white { color: black !important; }
-            .text-indigo-50\/80 { color: #374151 !important; }
-            
-            /* Paslepiame foninius elementus */
-            .blur-\[100px\], .absolute { display: none !important; }
+            /* Ensure background colors on progress bars and badge pills are printed */
+            .print-bg-emerald { background-color: #10b981 !important; }
+            .print-bg-teal { background-color: #14b8a6 !important; }
+            .print-bg-indigo { background-color: #6366f1 !important; }
+            .print-bg-amber { background-color: #f59e0b !important; }
         }
 
         .custom-scrollbar::-webkit-scrollbar {

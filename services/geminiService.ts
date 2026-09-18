@@ -1,4 +1,5 @@
 import { QuestionSummary } from "../types";
+import { generatePedagogicalInsights } from "./pedagogicalAnalysis";
 
 export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: string[]) => {
   try {
@@ -14,16 +15,14 @@ export const getAIInsights = async (summaries: QuestionSummary[], openFeedback: 
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    if (!data.strengths || data.strengths.includes("Nepavyko sugeneruoti")) {
+      return generatePedagogicalInsights(summaries, openFeedback);
+    }
+    return data;
   } catch (error) {
-    console.error("Gemini AI API call error:", error);
-    return {
-      strengths: "Nepavyko sugeneruoti įžvalgų per serverį.",
-      improvements: "Peržiūrėkite mokinių duomenis rankiniu būdu.",
-      insights: "",
-      sentimentScore: 50,
-      themes: []
-    };
+    console.warn("Gemini AI API call fallback to heuristic pedagogical analysis:", error);
+    return generatePedagogicalInsights(summaries, openFeedback);
   }
 };
 

@@ -357,6 +357,7 @@ const App: React.FC = () => {
             feedback={openFeedback} 
             aiInsights={aiInsights} 
             isAnalyzing={isAnalyzing} 
+            history={history}
             onNext={() => setStep(AppStep.REFLECTION)} 
             onFinish={() => { setCustomTitle(''); setShowSaveModal(true); }}
             onDownloadReport={() => setStep(AppStep.REPORT)}
@@ -383,6 +384,7 @@ const App: React.FC = () => {
             aiInsights={aiInsights}
             reflection={reflection}
             customTitle={customTitle}
+            history={history}
             onBack={() => setStep(AppStep.ANALYSIS)}
             onOpenReflection={() => setStep(AppStep.REFLECTION)}
             onSaveToHistory={() => { setCustomTitle(''); setShowSaveModal(true); }}

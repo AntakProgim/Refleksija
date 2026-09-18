@@ -1,13 +1,15 @@
 
 import React from 'react';
-import { QuestionSummary } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import { QuestionSummary, SavedSession } from '../types';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import PedagogicalGrowthChart from './PedagogicalGrowthChart';
 
 interface SummaryDashboardProps {
   summaries: QuestionSummary[];
   feedback: string[];
   aiInsights: any;
   isAnalyzing: boolean;
+  history?: SavedSession[];
   onNext: () => void;
   onFinish: () => void;
   onDownloadReport: () => void;
@@ -34,6 +36,7 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
   feedback, 
   aiInsights, 
   isAnalyzing,
+  history,
   onNext,
   onFinish,
   onDownloadReport
@@ -81,7 +84,7 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
               onClick={onDownloadReport} 
               className="flex-1 md:flex-none px-6 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 active:scale-95"
             >
-              <i className="fas fa-file-pdf"></i> Atsisiųsti ataskaitą (PDF)
+              <i className="fas fa-file-pdf"></i> Eksportuoti PDF su DI
             </button>
             <button 
               onClick={onNext}
@@ -154,6 +157,14 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Pedagogical Growth Chart comparing multiple sessions over time */}
+      <PedagogicalGrowthChart 
+        currentSummaries={summaries} 
+        currentAiInsights={aiInsights} 
+        history={history || []}
+        onSaveCurrentSession={onFinish}
+      />
 
       <div className="space-y-8 max-w-2xl mx-auto">
         <div className="flex items-center gap-4 px-2">
@@ -240,7 +251,7 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
           onClick={onDownloadReport}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 md:px-14 py-5 rounded-[2rem] font-black transition-all shadow-xl shadow-indigo-200 active:scale-95 flex items-center gap-3 text-sm md:text-base uppercase tracking-wider"
         >
-          <i className="fas fa-file-pdf"></i> Atsisiųsti ataskaitą (be refleksijos)
+          <i className="fas fa-file-pdf"></i> Eksportuoti ataskaitą su DI įžvalgomis (PDF)
         </button>
         <button 
           onClick={onNext}

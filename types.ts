@@ -28,6 +28,17 @@ export interface ReflectionData {
   nextSteps: string;
 }
 
+export interface SavedSession {
+  id: number;
+  date: string;
+  displayDate: string;
+  title: string;
+  data: ReflectionData;
+  aiInsights: any;
+  summaries: QuestionSummary[];
+  feedback?: string[];
+}
+
 export enum AppStep {
   UPLOAD = 'UPLOAD',
   ANALYSIS = 'ANALYSIS',
