@@ -4,7 +4,7 @@ import { AppStep, SurveyRow, QuestionSummary, LIKERT_VALUES, ReflectionData, CAT
 import CSVUpload from './components/CSVUpload';
 import SummaryDashboard from './components/SummaryDashboard';
 import ReflectionWizard from './components/ReflectionWizard';
-import GoogleChatShare from './components/GoogleChatShare';
+import FinalReport from './components/FinalReport';
 import { getAIInsights } from './services/geminiService';
 
 const SESSION_DRAFT_KEY = 'teacher_reflection_session_v1';
@@ -359,6 +359,7 @@ const App: React.FC = () => {
             isAnalyzing={isAnalyzing} 
             onNext={() => setStep(AppStep.REFLECTION)} 
             onFinish={() => { setCustomTitle(''); setShowSaveModal(true); }}
+            onDownloadReport={() => setStep(AppStep.REPORT)}
           />
         )}
         
@@ -367,108 +368,25 @@ const App: React.FC = () => {
             reflection={reflection} 
             setReflection={setReflection} 
             aiInsights={aiInsights} 
-            onComplete={() => { setCustomTitle(''); setShowSaveModal(true); }} 
+            summaries={summaries}
+            openFeedback={openFeedback}
+            onComplete={() => setStep(AppStep.REPORT)} 
             onBack={() => setStep(AppStep.ANALYSIS)} 
             onSaveAndExit={() => { setCustomTitle(''); setShowSaveModal(true); }} 
           />
         )}
 
         {step === AppStep.REPORT && (
-          <div className="max-w-4xl mx-auto bg-white p-10 md:p-16 rounded-[4rem] shadow-2xl report-container print:shadow-none print:p-0 print:m-0 print:rounded-none print:max-w-none">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 border-b border-gray-100 pb-12 print:pb-8 print:mb-10 gap-6">
-              <div>
-                <h2 className="text-4xl font-black text-gray-900 print:text-2xl">Ataskaitos santrauka</h2>
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mt-2">{new Date().toLocaleDateString('lt-LT')}</p>
-              </div>
-              <div className="flex gap-3 w-full md:w-auto print:hidden">
-                <button onClick={() => window.print()} className="flex-1 px-8 py-4 rounded-2xl bg-indigo-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 transition-all active:scale-95"><i className="fas fa-file-pdf"></i> Atsisiųsti PDF</button>
-              </div>
-            </div>
-
-            <div className="space-y-16 print:space-y-10">
-              <div className="print:hidden">
-                <GoogleChatShare 
-                  reflection={reflection} 
-                  aiInsights={aiInsights} 
-                  dateStr={new Date().toLocaleDateString('lt-LT')} 
-                />
-              </div>
-
-              {/* Only show AI Insights if they exist */}
-              {aiInsights && (
-                <section className="report-section bg-slate-50 p-8 rounded-[2rem] border border-gray-100 print:bg-white">
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500 mb-6"><i className="fas fa-microchip"></i> DI Duomenų įžvalgos</h3>
-                  <div className="grid md:grid-cols-2 gap-8 print:grid-cols-1">
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase text-emerald-600 mb-2">Stiprybės</h4>
-                      <p className="text-sm text-gray-700 leading-relaxed">{aiInsights.strengths}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-[10px] font-black uppercase text-rose-600 mb-2">Tobulėtinos sritys</h4>
-                      <p className="text-sm text-gray-700 leading-relaxed">{aiInsights.improvements}</p>
-                    </div>
-                  </div>
-                </section>
-              )}
-
-              {openFeedback && openFeedback.length > 0 && (
-                <section className="report-section bg-white p-8 rounded-[2rem] border border-gray-100 print:p-0 print:border-none print:mt-10">
-                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-gray-500 mb-6"><i className="fas fa-comment-dots"></i> Mokinių pastebėjimai ir idėjos</h3>
-                  <div className="grid md:grid-cols-2 gap-4 print:grid-cols-1">
-                    {openFeedback.map((comment, idx) => (
-                      <div key={idx} className="bg-slate-50 p-6 rounded-2xl border border-gray-100 text-sm text-gray-700 italic leading-relaxed print:bg-transparent print:border-l-4 print:border-l-gray-300 print:rounded-none print:py-2 print:px-4">
-                        "{comment}"
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Only show teacher reflection if fields are not empty */}
-              {hasReflectionContent && (
-                <>
-                  <section className="report-section grid md:grid-cols-2 gap-12 print:grid-cols-1 print:gap-8">
-                    {reflection.observations && (
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Mokytojo pastebėjimai</h4>
-                        <p className="text-gray-700 italic text-xl print:text-base leading-relaxed">"{reflection.observations}"</p>
-                      </div>
-                    )}
-                    {reflection.strengths && (
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Identifikuotos stiprybės</h4>
-                        <p className="text-gray-700 text-xl font-medium print:text-base leading-relaxed">{reflection.strengths}</p>
-                      </div>
-                    )}
-                  </section>
-
-                  <section className="report-section bg-slate-900 text-white p-12 rounded-[3rem] space-y-10 relative overflow-hidden print:bg-white print:text-black print:border print:rounded-2xl print:p-8">
-                    <h3 className="font-black text-2xl flex items-center gap-4 relative z-10 print:text-xl"><i className="fas fa-rocket text-indigo-400"></i> Veiksmų planas</h3>
-                    <div className="grid md:grid-cols-3 gap-10 relative z-10 print:grid-cols-1 print:gap-6">
-                      <div className="space-y-2">
-                        <h5 className="text-[10px] font-black uppercase tracking-widest text-rose-400 pb-2 border-b border-rose-400/20">Nustosiu</h5>
-                        <p className="text-sm">{reflection.actionStop || '-'}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <h5 className="text-[10px] font-black uppercase tracking-widest text-emerald-400 pb-2 border-b border-emerald-400/20">Pradėsiu</h5>
-                        <p className="text-sm">{reflection.actionStart || '-'}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <h5 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 pb-2 border-b border-indigo-400/20">Tęsiu</h5>
-                        <p className="text-sm">{reflection.actionContinue || '-'}</p>
-                      </div>
-                    </div>
-                  </section>
-                </>
-              )}
-
-              <div className="text-center pt-10 border-t border-gray-100 print:pt-6 print:mt-10">
-                <a href={EXTERNAL_LINK} target="_blank" rel="noopener noreferrer" className="text-[9px] text-indigo-400 font-black uppercase tracking-[0.4em] hover:text-indigo-600 transition-all">
-                  ugdymo kokybė • Antakalnio progimnazija
-                </a>
-              </div>
-            </div>
-          </div>
+          <FinalReport
+            summaries={summaries}
+            openFeedback={openFeedback}
+            aiInsights={aiInsights}
+            reflection={reflection}
+            customTitle={customTitle}
+            onBack={() => setStep(AppStep.ANALYSIS)}
+            onOpenReflection={() => setStep(AppStep.REFLECTION)}
+            onSaveToHistory={() => { setCustomTitle(''); setShowSaveModal(true); }}
+          />
         )}
       </main>
       

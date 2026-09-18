@@ -10,6 +10,7 @@ interface SummaryDashboardProps {
   isAnalyzing: boolean;
   onNext: () => void;
   onFinish: () => void;
+  onDownloadReport: () => void;
 }
 
 const CustomYAxisTick = (props: any) => {
@@ -34,7 +35,8 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
   aiInsights, 
   isAnalyzing,
   onNext,
-  onFinish
+  onFinish,
+  onDownloadReport
 }) => {
   const categories = [
     { name: 'Įsitraukimas', icon: 'fa-bolt-lightning' },
@@ -74,13 +76,16 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
-             <button onClick={onFinish} className="flex-1 md:flex-none px-6 py-4 rounded-2xl border-2 border-indigo-50 text-indigo-600 font-black text-xs uppercase tracking-widest transition-all hover:bg-indigo-50">
-               Baigti čia
-             </button>
+          <div className="flex flex-wrap gap-3 w-full md:w-auto">
              <button 
+              onClick={onDownloadReport} 
+              className="flex-1 md:flex-none px-6 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 active:scale-95"
+            >
+              <i className="fas fa-file-pdf"></i> Atsisiųsti ataskaitą (PDF)
+            </button>
+            <button 
               onClick={onNext}
-              className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-black transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3 text-xs uppercase tracking-widest"
+              className="flex-1 md:flex-none bg-white hover:bg-indigo-50 border-2 border-indigo-100 text-indigo-700 px-6 py-4 rounded-2xl font-black transition-all active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
             >
               Tęsti refleksiją <i className="fas fa-arrow-right"></i>
             </button>
@@ -222,26 +227,26 @@ const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
       <div className="flex flex-wrap justify-center pt-8 gap-4">
         <button 
           onClick={() => {
-            if (confirm('Ar tikrai norite nutraukti refleksiją? Neišsaugoti duomenys bus prarasti.')) {
+            if (confirm('Ar tikrai norite nutraukti? Visi dabartiniai duomenys bus atstatyti.')) {
               localStorage.removeItem('teacher_reflection_session_v1');
               window.location.reload();
             }
           }}
-          className="bg-white border-2 border-rose-100 text-rose-600 px-8 py-6 rounded-[2rem] font-black transition-all shadow-md active:scale-95 hover:bg-rose-50"
+          className="bg-white border-2 border-rose-100 text-rose-600 px-6 py-5 rounded-[2rem] font-black text-xs uppercase tracking-wider transition-all shadow-sm active:scale-95 hover:bg-rose-50"
         >
           Nutraukti
         </button>
         <button 
-          onClick={onFinish}
-          className="bg-white border-2 border-indigo-100 text-indigo-600 px-8 md:px-12 py-6 rounded-[2rem] font-black transition-all shadow-xl active:scale-95 hover:bg-indigo-50"
+          onClick={onDownloadReport}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 md:px-14 py-5 rounded-[2rem] font-black transition-all shadow-xl shadow-indigo-200 active:scale-95 flex items-center gap-3 text-sm md:text-base uppercase tracking-wider"
         >
-          Baigti ir išsaugoti tik analizę
+          <i className="fas fa-file-pdf"></i> Atsisiųsti ataskaitą (be refleksijos)
         </button>
         <button 
           onClick={onNext}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 md:px-16 py-6 rounded-[2rem] font-black transition-all shadow-2xl shadow-indigo-200 active:scale-95 flex items-center gap-4 text-base md:text-lg"
+          className="bg-white border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-50 px-8 py-5 rounded-[2rem] font-black transition-all shadow-sm active:scale-95 flex items-center gap-3 text-xs md:text-sm uppercase tracking-wider"
         >
-          Tęsti refleksiją <i className="fas fa-chevron-right"></i>
+          Tęsti su refleksija (neprivaloma) <i className="fas fa-chevron-right text-xs"></i>
         </button>
       </div>
     </div>
